@@ -1,0 +1,6 @@
+{
+  "name": "SIPATI - Sistem Informasi Tim Administrasi",
+  "description": "Sistem Informasi Tim Administrasi - Platform digital terpadu untuk mengelola, mengarsipkan, dan memantau seluruh proses administrasi perayaan HUT RI Ke-81",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-primary: #57000f;
+    --color-primary-container: #7a1220;
+    --color-secondary: #b62230;
+    --color-secondary-container: #ff595e;
+    --color-on-secondary-container: #60000e;
+    --color-surface: #fdf9f0;
+    --color-surface-paper: #FFFDF8;
+    --color-surface-dim: #dddad1;
+    --color-border-warm: #E4DCC8;
+    --color-ink-text: #20201D;
+    --color-ink-subtle: #6E6A61;
+    --color-status-success: #2F6B44;
+    --color-status-pending: #7A7568;
+  }
+}
+
+/* Custom font utilities */
+.font-display-brand, .font-headline-lg, .font-headline-sm {
+  font-family: 'Lora', serif;
+}
+
+.font-technical-eyebrow, .font-stamp-label {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.font-body-md, .font-nav-link, .font-label-bold {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Texture & Effects */
+.dot-grid-bg {
+  background-color: #fdf9f0;
+  background-image: radial-gradient(#E4DCC8 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.digital-paper-texture {
+  background-image: radial-gradient(circle at 100% 100%, rgba(122, 117, 104, 0.03) 0%, transparent 10%), radial-gradient(circle at 0% 0%, rgba(122, 117, 104, 0.04) 0%, transparent 10%);
+}
+
+.stempel-effect {
+  mix-blend-mode: multiply;
+}
+
+.paper-divider {
+  border-bottom: 1px dashed #E4DCC8;
+}
+
+/* Material Symbols customization */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+
