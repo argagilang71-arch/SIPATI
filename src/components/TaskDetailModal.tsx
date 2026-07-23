@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
 import { TaskItem, TaskStatus } from '../types';
+import {
+  registerUploadedFile,
+  downloadStoredFile,
+  getStoredFileInfo,
+  openInGoogleDrive,
+} from '../utils/fileStorage';
 
 interface TaskDetailModalProps {
   task: TaskItem;
@@ -41,13 +47,16 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     type: 'draft' | 'dokumen' | 'tandaTerima'
   ) => {
     if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files).map((f: File) => f.name);
+      const filesArray = Array.from(e.target.files) as File[];
+      filesArray.forEach((f: File) => registerUploadedFile(f));
+      const newFileNames = filesArray.map((f: File) => f.name);
+
       if (type === 'draft') {
-        setDraftPekerjaan((prev) => [...prev, ...newFiles]);
+        setDraftPekerjaan((prev) => [...prev, ...newFileNames]);
       } else if (type === 'dokumen') {
-        setBuktiDokumen((prev) => [...prev, ...newFiles]);
+        setBuktiDokumen((prev) => [...prev, ...newFileNames]);
       } else {
-        setBuktiSuratDiterima((prev) => [...prev, ...newFiles]);
+        setBuktiSuratDiterima((prev) => [...prev, ...newFileNames]);
       }
     }
   };
@@ -66,29 +75,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   const handleDownloadFile = (fileName: string) => {
-    const fileContent = `PANITIA PELAKSANA PERINGATAN HUT RI KE-81 TAHUN 2026\n` +
-      `SISTEM INFORMASI PENGELOLAAN ADMINISTRASI TERPADU INDONESIA (SIPATI)\n` +
-      `============================================================\n\n` +
-      `NAMA BERKAS    : ${fileName}\n` +
-      `PEKERJAAN      : ${title}\n` +
-      `BIDANG         : ${bidang}\n` +
-      `NOMOR SURAT    : ${task.noSurat || '—'}\n` +
-      `PENANGGUNG JAWAB: ${pj || '—'}\n` +
-      `STATUS         : ${status}\n` +
-      `TANGGAL BUAT   : ${task.dateCreated || '2026-08-01'}\n\n` +
-      `CATATAN / KETERANGAN:\n${catatan || 'Tidak ada catatan khusus.'}\n\n` +
-      `------------------------------------------------------------\n` +
-      `Dikeluarkan secara sah oleh Panitia Nasional HUT RI Ke-81.`;
-
-    const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName.includes('.') ? fileName : `${fileName}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadStoredFile(fileName, {
+      title,
+      noSurat: task.noSurat,
+      bidang,
+      catatan,
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -619,7 +611,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-3.5 bg-[#FFFDF8] border-t border-[#E4DCC8] flex justify-between items-center shrink-0">
+            <div className="p-3.5 bg-[#FFFDF8] border-t border-[#E4DCC8] flex flex-wrap justify-between items-center shrink-0 gap-2">
               <button
                 type="button"
                 onClick={() => setActivePreview(null)}
@@ -627,18 +619,28 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               >
                 Tutup
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleDownloadFile(activePreview.fileName);
-                }}
-                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-              >
-                <span className="material-symbols-outlined text-sm">
-                  download
-                </span>
-                <span>Unduh Berkas</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openInGoogleDrive(activePreview.fileName)}
+                  className="px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                >
+                  <span className="material-symbols-outlined text-sm">cloud</span>
+                  <span>Buka di Google Drive</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDownloadFile(activePreview.fileName);
+                  }}
+                  className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    download
+                  </span>
+                  <span>Unduh Berkas</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

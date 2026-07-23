@@ -1,15 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import garudaEmblemImg from '../assets/images/garuda_pancasila_emblem_1784830236371.jpg';
+import { getDriveConfig, saveDriveConfig, openInGoogleDrive, GoogleDriveConfig } from '../utils/fileStorage';
 
-interface TeamMember {
+export interface TeamMember {
   id: string;
   nama: string;
   nip: string;
   jabatan: string;
   subBagian: string;
+  username: string;
+  password?: string;
+  role: 'Officer / Administrator' | 'Analis Kebijakan' | 'Staf Operasional';
 }
 
-export const PengaturanView: React.FC = () => {
+interface PengaturanViewProps {
+  requireLogin?: boolean;
+  onToggleRequireLogin?: (val: boolean) => void;
+  isAuthenticated?: boolean;
+  onLogout?: () => void;
+}
+
+export const PengaturanView: React.FC<PengaturanViewProps> = ({
+  requireLogin = true,
+  onToggleRequireLogin,
+  isAuthenticated = true,
+  onLogout,
+}) => {
   const [namaInstansi, setNamaInstansi] = useState(
     'Bagian Tata Pemerintahan Sekretariat Daerah Kabupaten Kubu Raya'
   );
@@ -17,9 +33,17 @@ export const PengaturanView: React.FC = () => {
   const [nipAdmin, setNipAdmin] = useState('19780512 200312 1 002');
   const [emailNotif, setEmailNotif] = useState('tatapemerintahan@kuburayakab.go.id');
   const [autoArchive, setAutoArchive] = useState(true);
+  const [googleDriveSync, setGoogleDriveSync] = useState(true);
+  const [googleDriveConnected, setGoogleDriveConnected] = useState(true);
   const [saved, setSaved] = useState(false);
 
-  // Daftar Anggota & NIP
+  // Google Drive Configuration State
+  const [driveConfig, setDriveConfigState] = useState<GoogleDriveConfig>(getDriveConfig());
+
+  // Password visibility map for table
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+
+  // Daftar Anggota, NIP, Username & Password
   const [anggotaList, setAnggotaList] = useState<TeamMember[]>([
     {
       id: 'm-1',
@@ -27,6 +51,9 @@ export const PengaturanView: React.FC = () => {
       nip: '19780512 200312 1 002',
       jabatan: 'Kepala Bagian Tata Pemerintahan',
       subBagian: 'Kepala Bagian Tata Pemerintahan',
+      username: '197805122003121002',
+      password: 'admin123',
+      role: 'Officer / Administrator',
     },
     {
       id: 'm-2',
@@ -34,6 +61,9 @@ export const PengaturanView: React.FC = () => {
       nip: '19860920 200904 2 005',
       jabatan: 'Analis Kebijakan Ahli Muda',
       subBagian: 'Analis Kebijakan Ahli Muda',
+      username: 'siti.rahma',
+      password: 'user123',
+      role: 'Analis Kebijakan',
     },
     {
       id: 'm-3',
@@ -41,6 +71,9 @@ export const PengaturanView: React.FC = () => {
       nip: '19820415 200602 1 003',
       jabatan: 'Analis Kebijakan Ahli Pertama',
       subBagian: 'Analis Kebijakan Ahli Pertama',
+      username: 'budi.santoso',
+      password: 'user123',
+      role: 'Analis Kebijakan',
     },
     {
       id: 'm-4',
@@ -48,6 +81,9 @@ export const PengaturanView: React.FC = () => {
       nip: '19890510 201201 1 004',
       jabatan: 'Penelaah Teknis Kebijakan',
       subBagian: 'Penelaah Teknis Kebijakan',
+      username: 'hendra.w',
+      password: 'user123',
+      role: 'Staf Operasional',
     },
     {
       id: 'm-5',
@@ -55,6 +91,9 @@ export const PengaturanView: React.FC = () => {
       nip: '19910314 201503 1 002',
       jabatan: 'Analis Kewilayahan',
       subBagian: 'Analis Kewilayahan',
+      username: 'ahmad.s',
+      password: 'user123',
+      role: 'Staf Operasional',
     },
     {
       id: 'm-6',
@@ -62,24 +101,13 @@ export const PengaturanView: React.FC = () => {
       nip: '19720310 199803 1 004',
       jabatan: 'Pengadministrasi Umum',
       subBagian: 'Pengadministrasi Umum',
-    },
-    {
-      id: 'm-7',
-      nama: 'Rina Kartika, A.Md',
-      nip: '19941108 201801 2 001',
-      jabatan: 'Pengelola Layanan Operasional',
-      subBagian: 'Pengelola Layanan Operasional',
-    },
-    {
-      id: 'm-8',
-      nama: 'Aris Munandar',
-      nip: 'TENAGA KONTRAK / NON-ASN',
-      jabatan: 'Tenaga Pendukung Teknis (Outsourcing)',
-      subBagian: 'Tenaga Pendukung Teknis (Outsourcing)',
+      username: 'suparna',
+      password: 'user123',
+      role: 'Staf Operasional',
     },
   ]);
 
-  // Modal State untuk Tambah/Edit Anggota
+  // Modal State untuk Tambah/Edit Anggota & Login Credentials
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [memberForm, setMemberForm] = useState<Omit<TeamMember, 'id'>>({
@@ -87,7 +115,22 @@ export const PengaturanView: React.FC = () => {
     nip: '',
     jabatan: '',
     subBagian: 'Analis Kebijakan Ahli Muda',
+    username: '',
+    password: '',
+    role: 'Analis Kebijakan',
   });
+
+  // Load persisted members if available
+  useEffect(() => {
+    try {
+      const savedMembers = localStorage.getItem('sipati_team_members');
+      if (savedMembers) {
+        setAnggotaList(JSON.parse(savedMembers));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   const handleOpenAddMember = () => {
     setEditingMemberId(null);
@@ -96,6 +139,9 @@ export const PengaturanView: React.FC = () => {
       nip: '',
       jabatan: '',
       subBagian: 'Analis Kebijakan Ahli Muda',
+      username: '',
+      password: 'user123',
+      role: 'Analis Kebijakan',
     });
     setIsMemberModalOpen(true);
   };
@@ -107,43 +153,56 @@ export const PengaturanView: React.FC = () => {
       nip: m.nip,
       jabatan: m.jabatan,
       subBagian: m.subBagian,
+      username: m.username,
+      password: m.password || 'user123',
+      role: m.role || 'Analis Kebijakan',
     });
     setIsMemberModalOpen(true);
   };
 
   const handleDeleteMember = (id: string) => {
     if (confirm('Apakah Anda yakin ingin menghapus anggota ini dari daftar?')) {
-      setAnggotaList(anggotaList.filter((m) => m.id !== id));
+      const newList = anggotaList.filter((m) => m.id !== id);
+      setAnggotaList(newList);
+      localStorage.setItem('sipati_team_members', JSON.stringify(newList));
     }
   };
 
   const handleSaveMember = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!memberForm.nama.trim() || !memberForm.nip.trim()) {
-      alert('Nama dan NIP wajib diisi.');
+    if (!memberForm.nama.trim() || !memberForm.nip.trim() || !memberForm.username.trim()) {
+      alert('Nama, NIP, dan Username Login wajib diisi.');
       return;
     }
 
+    let newList: TeamMember[];
     if (editingMemberId) {
-      setAnggotaList(
-        anggotaList.map((m) =>
-          m.id === editingMemberId ? { id: editingMemberId, ...memberForm } : m
-        )
+      newList = anggotaList.map((m) =>
+        m.id === editingMemberId ? { id: editingMemberId, ...memberForm } : m
       );
     } else {
       const newMember: TeamMember = {
         id: `m-${Date.now()}`,
         ...memberForm,
       };
-      setAnggotaList([...anggotaList, newMember]);
+      newList = [...anggotaList, newMember];
     }
+
+    setAnggotaList(newList);
+    localStorage.setItem('sipati_team_members', JSON.stringify(newList));
     setIsMemberModalOpen(false);
   };
 
   const handleSaveAll = (e: React.FormEvent) => {
     e.preventDefault();
+    saveDriveConfig(driveConfig);
+    localStorage.setItem('sipati_team_members', JSON.stringify(anggotaList));
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
+  };
+
+  const toggleShowPassword = (id: string) => {
+    setVisiblePasswords((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   return (
@@ -151,17 +210,17 @@ export const PengaturanView: React.FC = () => {
       {/* Title */}
       <div>
         <h2 className="font-['Lora',serif] text-[22px] sm:text-[26px] font-bold text-[#57000f] mb-1">
-          Pengaturan Sistem &amp; Profil Staff
+          Pengaturan Sistem &amp; Manajemen Akun Pengguna
         </h2>
         <p className="text-[#574141] font-['Inter',sans-serif] text-[13.5px]">
-          Kelola identitas instansi, daftar anggota &amp; NIP Bagian Tata Pemerintahan Kubu Raya, serta preferensi pelaporan otomatis.
+          Kelola identitas instansi, ID Google Drive target, serta kredensial Login (Username &amp; Password) untuk seluruh staff Officer.
         </p>
       </div>
 
       {saved && (
         <div className="p-3 bg-[#2F6B44]/15 border border-[#2F6B44] text-[#2F6B44] rounded-lg text-xs font-['Inter',sans-serif] font-semibold flex items-center gap-2 animate-fadeIn">
           <span className="material-symbols-outlined text-sm">check_circle</span>
-          Seluruh konfigurasi dan daftar anggota berhasil disimpan!
+          Seluruh konfigurasi sistem, ID Google Drive, dan akun login pengguna berhasil disimpan!
         </div>
       )}
 
@@ -222,16 +281,16 @@ export const PengaturanView: React.FC = () => {
           </div>
         </div>
 
-        {/* DAFTAR ANGGOTA & NIP (BAGIAN TATA PEMERINTAHAN) */}
+        {/* PENGATURAN KREDENSIAL LOGIN & DAFTAR ANGGOTA (AKSES OFFICER) */}
         <div className="bg-[#FFFDF8] border border-[#E4DCC8] rounded-xl p-6 shadow-2xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E4DCC8] pb-3">
             <div>
               <h3 className="font-['Lora',serif] text-[16px] font-bold text-[#57000f] flex items-center gap-2">
-                <span className="material-symbols-outlined text-sm">badge</span>
-                Daftar Anggota &amp; NIP Staff Bagian
+                <span className="material-symbols-outlined text-sm">manage_accounts</span>
+                Manajemen Username &amp; Password Pengguna (Akses Officer)
               </h3>
               <p className="text-xs text-[#6E6A61] mt-0.5">
-                Kelola daftar nama pegawai, NIP, dan jabatan pelaksana tata naskah dinas di lingkungan Bagian Tata Pemerintahan.
+                Officer dapat mengatur Username, Password, dan hak akses login untuk seluruh anggota/pegawai Bagian Tata Pemerintahan.
               </p>
             </div>
 
@@ -241,52 +300,73 @@ export const PengaturanView: React.FC = () => {
               className="px-3.5 py-2 bg-[#b62230] hover:bg-[#57000f] text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 self-start sm:self-auto shadow-2xs active:scale-95"
             >
               <span className="material-symbols-outlined text-sm">person_add</span>
-              <span>Tambah Anggota</span>
+              <span>Tambah Pengguna / Akun</span>
             </button>
           </div>
 
-          {/* Table / List of Members */}
+          {/* Table / List of Members with Username & Password */}
           <div className="overflow-x-auto rounded-lg border border-[#E4DCC8]">
             <table className="w-full text-left text-xs font-['Inter',sans-serif]">
               <thead className="bg-[#fcf8ee] border-b border-[#E4DCC8] font-bold uppercase text-[#6E6A61]">
                 <tr>
-                  <th className="p-3">Nama Anggota</th>
-                  <th className="p-3">NIP / Nomor Pegawai</th>
-                  <th className="p-3">Jabatan / Peran</th>
-                  <th className="p-3">Sub-Bagian</th>
-                  <th className="p-3 text-right">Aksi</th>
+                  <th className="p-3">Nama Pengguna / NIP</th>
+                  <th className="p-3">Jabatan &amp; Peran</th>
+                  <th className="p-3">Username Login</th>
+                  <th className="p-3">Kata Sandi (Password)</th>
+                  <th className="p-3 text-right">Aksi Officer</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E4DCC8]/60 text-[#1c1c16]">
                 {anggotaList.map((member) => (
                   <tr key={member.id} className="hover:bg-[#fdfaf2] transition">
-                    <td className="p-3 font-semibold text-[#1c1c16]">
-                      {member.nama}
-                    </td>
-                    <td className="p-3 font-mono font-medium text-[#57000f]">
-                      {member.nip}
-                    </td>
-                    <td className="p-3 text-[#574141]">{member.jabatan}</td>
                     <td className="p-3">
-                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#57000f]/10 text-[#57000f] border border-[#57000f]/20">
-                        {member.subBagian}
+                      <div className="font-semibold text-[#1c1c16]">{member.nama}</div>
+                      <div className="font-mono text-[11px] text-[#57000f]">NIP: {member.nip}</div>
+                    </td>
+                    <td className="p-3">
+                      <div className="text-[#1c1c16] font-medium">{member.jabatan}</div>
+                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#57000f]/10 text-[#57000f] border border-[#57000f]/20">
+                        {member.role || 'Analis Kebijakan'}
                       </span>
+                    </td>
+                    <td className="p-3 font-mono font-bold text-[#b62230] bg-[#fdfaf2]">
+                      {member.username}
+                    </td>
+                    <td className="p-3 font-mono font-semibold text-[#1c1c16]">
+                      <div className="flex items-center gap-2">
+                        <span>
+                          {visiblePasswords[member.id]
+                            ? member.password || 'user123'
+                            : '••••••••'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => toggleShowPassword(member.id)}
+                          className="text-[#6E6A61] hover:text-[#57000f] transition cursor-pointer"
+                          title="Tampilkan / Sembunyikan Password"
+                        >
+                          <span className="material-symbols-outlined text-sm">
+                            {visiblePasswords[member.id] ? 'visibility_off' : 'visibility'}
+                          </span>
+                        </button>
+                      </div>
                     </td>
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
                           type="button"
                           onClick={() => handleOpenEditMember(member)}
-                          className="p-1.5 text-slate-600 hover:text-[#b62230] hover:bg-slate-100 rounded transition cursor-pointer"
-                          title="Edit Anggota"
+                          className="px-2.5 py-1 text-xs font-semibold bg-[#b62230]/10 text-[#b62230] hover:bg-[#b62230] hover:text-white rounded transition cursor-pointer flex items-center gap-1"
+                          title="Atur Username & Password"
                         >
-                          <span className="material-symbols-outlined text-base">edit</span>
+                          <span className="material-symbols-outlined text-sm">key</span>
+                          <span>Atur Akses</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteMember(member.id)}
                           className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded transition cursor-pointer"
-                          title="Hapus Anggota"
+                          title="Hapus Akun"
                         >
                           <span className="material-symbols-outlined text-base">delete</span>
                         </button>
@@ -296,6 +376,180 @@ export const PengaturanView: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* INTEGRASI EKOSISTEM GOOGLE DRIVE CONFIGURATION */}
+        <div className="bg-[#FFFDF8] border border-[#E4DCC8] rounded-xl p-6 shadow-2xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E4DCC8] pb-3">
+            <div>
+              <h3 className="font-['Lora',serif] text-[16px] font-bold text-[#57000f] flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">add_to_drive</span>
+                Konfigurasi ID Google Drive &amp; Penyimpanan Cloud
+              </h3>
+              <p className="text-xs text-[#6E6A61] mt-0.5">
+                Atur ID Folder Google Drive target tempat seluruh dokumen yang diunggah akan disimpan &amp; disinkronkan secara otomatis.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+                googleDriveConnected
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                  : 'bg-amber-50 text-amber-800 border-amber-300'
+              }`}>
+                <span className="material-symbols-outlined text-sm">cloud_done</span>
+                {googleDriveConnected ? 'Terhubung Ke Google Drive' : 'Belum Terhubung'}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-[#6E6A61] mb-1">
+                ID Folder Google Drive Utama (Google Drive Folder ID)
+              </label>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6E6A61] text-base">
+                  folder_special
+                </span>
+                <input
+                  type="text"
+                  required
+                  value={driveConfig.folderId}
+                  onChange={(e) => {
+                    const newConfig = { ...driveConfig, folderId: e.target.value };
+                    setDriveConfigState(newConfig);
+                    saveDriveConfig(newConfig);
+                  }}
+                  placeholder="Contoh: 1A2b3C4d5E6f7G8h9I0j-SIPATI_KubuRaya"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md font-mono text-[13px] text-[#20201D] focus:outline-none focus:border-[#b62230]"
+                />
+              </div>
+              <p className="text-[11px] text-[#6E6A61] mt-1">
+                Dapatkan ID folder dari URL Google Drive Anda (karakter setelah <code>/folders/</code>).
+              </p>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-[#6E6A61] mb-1">
+                Tautan / Link Shared Folder Google Drive
+              </label>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6E6A61] text-base">
+                  link
+                </span>
+                <input
+                  type="text"
+                  value={driveConfig.sharedFolderUrl}
+                  onChange={(e) => {
+                    const newConfig = { ...driveConfig, sharedFolderUrl: e.target.value };
+                    setDriveConfigState(newConfig);
+                    saveDriveConfig(newConfig);
+                  }}
+                  placeholder="https://drive.google.com/drive/folders/1A2b3C4d5E..."
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md font-mono text-[12.5px] text-[#20201D] focus:outline-none focus:border-[#b62230]"
+                />
+              </div>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-[#6E6A61] mb-1">
+                Google Workspace Service Account Email / OAuth Client ID
+              </label>
+              <input
+                type="text"
+                value={driveConfig.serviceAccountEmail}
+                onChange={(e) => {
+                  const newConfig = { ...driveConfig, serviceAccountEmail: e.target.value };
+                  setDriveConfigState(newConfig);
+                  saveDriveConfig(newConfig);
+                }}
+                placeholder="sipati-drive-service@kuburaya.iam.gserviceaccount.com"
+                className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md font-mono text-[12.5px] text-[#20201D] focus:outline-none focus:border-[#b62230]"
+              />
+            </div>
+          </div>
+
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[#E4DCC8]">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="autoSyncCheck"
+                checked={googleDriveSync}
+                onChange={(e) => setGoogleDriveSync(e.target.checked)}
+                className="w-4 h-4 accent-[#b62230] cursor-pointer"
+              />
+              <label htmlFor="autoSyncCheck" className="text-xs font-medium text-[#20201D] cursor-pointer">
+                Otomatis Sinkronkan Seluruh Dokumen yang Diunggah ke ID Google Drive di atas
+              </label>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                openInGoogleDrive();
+              }}
+              className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            >
+              <span className="material-symbols-outlined text-sm">open_in_new</span>
+              <span>Uji &amp; Buka Folder Google Drive</span>
+            </button>
+          </div>
+        </div>
+
+        {/* PENGATURAN AKSES LOGIN & KEAMANAN */}
+        <div className="bg-[#FFFDF8] border border-[#E4DCC8] rounded-xl p-6 shadow-2xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E4DCC8] pb-3">
+            <div>
+              <h3 className="font-['Lora',serif] text-[16px] font-bold text-[#57000f] flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">lock</span>
+                Pengaturan Akses Login &amp; Sesi Keamanan
+              </h3>
+              <p className="text-xs text-[#6E6A61] mt-0.5">
+                Konfigurasi syarat otentikasi login pengguna sebelum dapat masuk ke dalam sistem aplikasi SIPATI.
+              </p>
+            </div>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+              isAuthenticated
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                : 'bg-rose-50 text-rose-800 border-rose-300'
+            }`}>
+              <span className="material-symbols-outlined text-sm">verified_user</span>
+              {isAuthenticated ? 'Status: Terautentikasi' : 'Status: Sesi Tamu'}
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-['Inter',sans-serif] font-semibold text-[13.5px] text-[#20201D]">
+                  Wajibkan Login Sebelum Masuk Aplikasi
+                </h4>
+                <p className="font-['Inter',sans-serif] text-xs text-[#6E6A61]">
+                  Setiap pengguna harus memasukkan Username/NIP &amp; Password di halaman Login untuk dapat mengakses data pekerjaan.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={requireLogin}
+                onChange={(e) => onToggleRequireLogin && onToggleRequireLogin(e.target.checked)}
+                className="w-5 h-5 accent-[#b62230] cursor-pointer"
+              />
+            </div>
+
+            {onLogout && (
+              <div className="pt-2 border-t border-[#E4DCC8] flex justify-between items-center">
+                <span className="text-xs text-[#6E6A61]">Sesi Pengguna Saat Ini: <strong>Drs. H. Mulyadi, M.Si (Officer Tata Pemerintahan)</strong></span>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-sm">logout</span>
+                  <span>Keluar / Logout Akun</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -347,14 +601,14 @@ export const PengaturanView: React.FC = () => {
         </div>
       </form>
 
-      {/* MODAL TAMBAH / EDIT ANGGOTA */}
+      {/* MODAL TAMBAH / EDIT ANGGOTA & ATUR USERNAME & PASSWORD */}
       {isMemberModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
           <div className="bg-[#FFFDF8] rounded-xl border border-[#E4DCC8] shadow-2xl max-w-md w-full overflow-hidden flex flex-col font-['Inter',sans-serif]">
             {/* Header */}
             <div className="bg-[#57000f] text-white px-5 py-3.5 flex items-center justify-between">
               <h4 className="font-['Lora',serif] font-bold text-base text-white">
-                {editingMemberId ? 'Edit Data Anggota' : 'Tambah Anggota Baru'}
+                {editingMemberId ? 'Pengaturan Akses & Account Officer' : 'Tambah Pengguna Baru'}
               </h4>
               <button
                 type="button"
@@ -395,18 +649,59 @@ export const PengaturanView: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#6E6A61] mb-1">
-                  JABATAN / PERAN TUGAS
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={memberForm.jabatan}
-                  onChange={(e) => setMemberForm({ ...memberForm, jabatan: e.target.value })}
-                  placeholder="Contoh: Analis Kebijakan Ahli Muda"
-                  className="w-full px-3.5 py-2 bg-white border border-[#E4DCC8] rounded-md text-xs text-[#1c1c16] font-medium focus:border-[#b62230] outline-none"
-                />
+              <div className="p-3 bg-[#fdfaf2] border border-[#E4DCC8] rounded-lg space-y-3">
+                <div className="text-xs font-bold uppercase text-[#57000f] flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-sm">lock_person</span>
+                  Setting Kredensial Login (Akses Officer)
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-[#6E6A61] mb-1">
+                    USERNAME LOGIN
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={memberForm.username}
+                    onChange={(e) => setMemberForm({ ...memberForm, username: e.target.value })}
+                    placeholder="Contoh: mulyadi atau NIP"
+                    className="w-full px-3 py-1.5 bg-white border border-[#E4DCC8] rounded text-xs font-mono font-bold text-[#b62230] focus:border-[#b62230] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-[#6E6A61] mb-1">
+                    KATA SANDI / PASSWORD
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={memberForm.password}
+                    onChange={(e) => setMemberForm({ ...memberForm, password: e.target.value })}
+                    placeholder="Masukkan Password Baru"
+                    className="w-full px-3 py-1.5 bg-white border border-[#E4DCC8] rounded text-xs font-mono text-[#1c1c16] focus:border-[#b62230] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-[#6E6A61] mb-1">
+                    PERAN / PERIZINAN HAK AKSES
+                  </label>
+                  <select
+                    value={memberForm.role}
+                    onChange={(e) =>
+                      setMemberForm({
+                        ...memberForm,
+                        role: e.target.value as TeamMember['role'],
+                      })
+                    }
+                    className="w-full px-3 py-1.5 bg-white border border-[#E4DCC8] rounded text-xs text-[#1c1c16] font-medium outline-none cursor-pointer"
+                  >
+                    <option value="Officer / Administrator">Officer / Administrator</option>
+                    <option value="Analis Kebijakan">Analis Kebijakan</option>
+                    <option value="Staf Operasional">Staf Operasional</option>
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -448,7 +743,7 @@ export const PengaturanView: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 bg-[#b62230] hover:bg-[#57000f] text-white rounded font-bold text-xs shadow-xs cursor-pointer"
                 >
-                  Simpan Anggota
+                  Simpan Akun
                 </button>
               </div>
             </form>
@@ -458,3 +753,4 @@ export const PengaturanView: React.FC = () => {
     </div>
   );
 };
+

@@ -30,9 +30,13 @@ import { SendEmailModal } from './components/SendEmailModal';
 import { HelpModal } from './components/HelpModal';
 import { PengaturanView } from './components/PengaturanView';
 import { AppsScriptView } from './components/AppsScriptView';
+import { downloadStoredFile } from './utils/fileStorage';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<ViewMode>('pekerjaan');
+  const [currentView, setCurrentView] = useState<ViewMode>('landing');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [requireLogin, setRequireLogin] = useState<boolean>(true);
+
   const [tasks, setTasks] = useState<TaskItem[]>(INITIAL_TASKS);
   const [archives, setArchives] = useState<ArchiveItem[]>(INITIAL_ARCHIVES);
   const [templates, setTemplates] = useState<TemplateItem[]>(INITIAL_TEMPLATES);
@@ -194,20 +198,42 @@ export default function App() {
     showBanner('Dokumen arsip baru berhasil diunggah.');
   };
 
-  // Downloads simulation
+  // Downloads
   const handleDownloadReportPdf = () => {
-    showBanner('Mengunduh Buku Laporan Digital Otomatis (PDF)...');
+    downloadStoredFile('Laporan_Eksekutif_Administrasi_SIPATI.pdf', {
+      title: 'Laporan Eksekutif Administrasi Bagian Tata Pemerintahan',
+      noSurat: '001/LAP-EKS/SIPATI/VIII/2026',
+      bidang: 'Sekretariat Daerah Tata Pemerintahan',
+    });
+    showBanner('Buku Laporan Digital Otomatis (PDF) berhasil diunduh.');
   };
 
   const handleDownloadArchiveFile = (item: ArchiveItem) => {
-    showBanner(`Mengunduh berkas salinan: ${item.title}`);
+    downloadStoredFile(`${item.title}.${item.fileType}`, {
+      title: item.title,
+      noSurat: item.noSurat,
+      bidang: item.bidang,
+    });
+    showBanner(`Mengunduh berkas salinan: ${item.title}.${item.fileType}`);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setCurrentView('landing');
+    showBanner('Anda telah keluar dari sesi akun SIPATI.');
   };
 
   // Render standalone pages without sidebar if Landing or Login
   if (currentView === 'landing') {
     return (
       <LandingPage
-        onEnterApp={() => setCurrentView('pekerjaan')}
+        onEnterApp={() => {
+          if (requireLogin && !isAuthenticated) {
+            setCurrentView('login');
+          } else {
+            setCurrentView('pekerjaan');
+          }
+        }}
         onOpenLogin={() => setCurrentView('login')}
       />
     );
@@ -217,6 +243,7 @@ export default function App() {
     return (
       <LoginPage
         onLoginSuccess={() => {
+          setIsAuthenticated(true);
           setCurrentView('pekerjaan');
           showBanner('Login Berhasil! Selamat datang di SIPATI.');
         }}
@@ -237,6 +264,7 @@ export default function App() {
         onOpenProposalModal={() => setIsProposalModalOpen(true)}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        onLogout={handleLogout}
       />
 
       {/* Main App Content Area */}
@@ -299,7 +327,21 @@ export default function App() {
             />
           )}
 
-          {currentView === 'pengaturan' && <PengaturanView />}
+          {currentView === 'pengaturan' && (
+            <PengaturanView
+              requireLogin={requireLogin}
+              onToggleRequireLogin={(val) => {
+                setRequireLogin(val);
+                showBanner(
+                  val
+                    ? 'Syarat login wajib sebelum masuk aplikasi DIAKTIFKAN.'
+                    : 'Syarat login dinonaktifkan.'
+                );
+              }}
+              isAuthenticated={isAuthenticated}
+              onLogout={handleLogout}
+            />
+          )}
           {currentView === 'appscript' && <AppsScriptView />}
         </main>
       </div>

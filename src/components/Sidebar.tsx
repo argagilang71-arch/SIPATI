@@ -9,6 +9,7 @@ interface SidebarProps {
   onOpenProposalModal: () => void;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
+  onLogout?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -17,6 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenProposalModal,
   isMobileOpen,
   onCloseMobile,
+  onLogout,
 }) => {
   const navItems: { view: ViewMode; label: string; icon: string }[] = [
     { view: 'ringkasan', label: 'Ringkasan', icon: 'dashboard' },
@@ -121,10 +123,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
           <button
             onClick={() => {
-              onNavigate('landing');
+              if (onLogout) {
+                onLogout();
+              } else {
+                onNavigate('landing');
+              }
               onCloseMobile();
             }}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-white/80 hover:text-white hover:bg-[#7a1220] transition-colors font-['Inter',sans-serif] text-[13px]"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-white/80 hover:text-white hover:bg-[#7a1220] transition-colors font-['Inter',sans-serif] text-[13px] cursor-pointer"
           >
             <span className="material-symbols-outlined text-sm">logout</span>
             <span>Keluar</span>

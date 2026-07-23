@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { TemplateItem, TaskStatus } from '../types';
+import { downloadStoredFile } from '../utils/fileStorage';
 
 interface TemplateSuratProps {
   templates: TemplateItem[];
@@ -83,26 +84,12 @@ export const TemplateSurat: React.FC<TemplateSuratProps> = ({
 
   const handleDownload = () => {
     const fileName = formData.backupFile || `${formData.title || 'Template_Surat'}.doc`;
-    const fileContent = `PANITIA PELAKSANA PERINGATAN HUT RI KE-81 TAHUN 2026\n` +
-      `SISTEM INFORMASI PENGELOLAAN ADMINISTRASI BAGIAN TATA PEMERINTAHAN KUBU RAYA (SIPATI)\n` +
-      `============================================================\n\n` +
-      `NAMA TEMPLATE   : ${formData.title}\n` +
-      `BIDANG OPERASIONAL: ${formData.category}\n` +
-      `PEKERJAAN DITUJU: ${formData.targetPekerjaan || '—'}\n` +
-      `STATUS          : ${formData.status}\n\n` +
-      `DESKRIPSI / FORMAT BAKU:\n${formData.description || 'Tidak ada deskripsi tambahan.'}\n\n` +
-      `------------------------------------------------------------\n` +
-      `Dokumen Template Resmi Panitia HUT RI Ke-81.`;
-
-    const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName.includes('.') ? fileName : `${fileName}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadStoredFile(fileName, {
+      title: formData.title || 'Template Surat',
+      noSurat: formData.code || 'TPL/SIPATI/2026',
+      bidang: formData.category,
+      catatan: formData.description,
+    });
   };
 
   const handlePreviewFile = () => {

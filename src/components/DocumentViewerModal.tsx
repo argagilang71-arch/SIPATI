@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArchiveItem } from '../types';
+import { openInGoogleDrive } from '../utils/fileStorage';
 
 interface DocumentViewerModalProps {
   item: ArchiveItem;
@@ -112,20 +113,29 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 bg-[#FFFDF8] border-t border-[#E4DCC8] flex justify-between items-center">
+        <div className="p-4 bg-[#FFFDF8] border-t border-[#E4DCC8] flex flex-wrap justify-between items-center gap-2">
           <button
             onClick={onClose}
             className="px-5 py-2.5 bg-[#FFFDF8] border border-[#E4DCC8] hover:bg-[#f1eee5] text-[#20201D] rounded-md font-['Inter',sans-serif] text-[12px] font-semibold transition-colors cursor-pointer"
           >
             Tutup Pratinjau
           </button>
-          <button
-            onClick={() => onDownload(item)}
-            className="px-6 py-2.5 bg-[#b62230] hover:bg-[#57000f] text-white rounded-md font-['Inter',sans-serif] text-[12px] font-semibold transition-colors flex items-center gap-2 cursor-pointer shadow-xs active:scale-95"
-          >
-            <span className="material-symbols-outlined text-sm">download</span>
-            Unduh Berkas Salinan
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => openInGoogleDrive(`${item.title}.${item.fileType}`)}
+              className="px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-md font-['Inter',sans-serif] text-[12px] font-semibold transition-colors flex items-center gap-2 cursor-pointer shadow-xs active:scale-95"
+            >
+              <span className="material-symbols-outlined text-sm">cloud</span>
+              <span>Buka di Google Drive</span>
+            </button>
+            <button
+              onClick={() => onDownload(item)}
+              className="px-5 py-2.5 bg-[#b62230] hover:bg-[#57000f] text-white rounded-md font-['Inter',sans-serif] text-[12px] font-semibold transition-colors flex items-center gap-2 cursor-pointer shadow-xs active:scale-95"
+            >
+              <span className="material-symbols-outlined text-sm">download</span>
+              Unduh Salinan
+            </button>
+          </div>
         </div>
       </div>
     </div>
