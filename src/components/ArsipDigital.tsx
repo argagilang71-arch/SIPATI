@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArchiveItem, ArchiveStatus } from '../types';
+import { GoogleDriveManager } from './GoogleDriveManager';
 
 interface ArsipDigitalProps {
   archives: ArchiveItem[];
@@ -53,6 +54,9 @@ export const ArsipDigital: React.FC<ArsipDigitalProps> = ({
           Unggah Arsip Baru
         </button>
       </div>
+
+      {/* Compact Google Drive Status Bar */}
+      <GoogleDriveManager compact />
 
       {/* Filters & Search Bar (Bento-style matching Image 3) */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-[14px]">

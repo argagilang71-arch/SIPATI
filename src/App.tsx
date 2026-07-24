@@ -253,12 +253,13 @@ export default function App() {
   };
 
   const handleDownloadArchiveFile = (item: ArchiveItem) => {
-    downloadStoredFile(`${item.title}.${item.fileType}`, {
+    const cleanTitle = item.title.replace(/[\/\\:*?"<>|]/g, '_');
+    downloadStoredFile(`${cleanTitle}.${item.fileType}`, {
       title: item.title,
       noSurat: item.noSurat,
       bidang: item.bidang,
     });
-    showBanner(`Mengunduh berkas salinan: ${item.title}.${item.fileType}`);
+    showBanner(`Mengunduh berkas salinan: ${cleanTitle}.${item.fileType}`);
   };
 
   const handleLogout = () => {

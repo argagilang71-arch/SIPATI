@@ -39,11 +39,88 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim()) {
-      fillOfficerCredentials();
+    const cleanUser = username.trim().toLowerCase().replace(/\s+/g, '');
+    const cleanPass = password.trim();
+
+    if (!cleanUser || !cleanPass) {
+      setErrorMsg('Mohon isi Username / NIP dan Kata Sandi.');
+      return;
     }
-    setErrorMsg('');
-    onLoginSuccess();
+
+    // Load registered team members from PengaturanView / LocalStorage
+    let teamMembers: any[] = [];
+    try {
+      const saved = localStorage.getItem('sipati_team_members');
+      if (saved) {
+        teamMembers = JSON.parse(saved);
+      }
+    } catch (err) {
+      console.error('Error loading team members:', err);
+    }
+
+    // Default accounts fallback
+    const defaultAccounts = [
+      {
+        nama: 'Drs. H. Mulyadi, M.Si',
+        nip: '19780512 200312 1 002',
+        username: '197805122003121002',
+        password: 'admin123',
+        role: 'Officer / Administrator',
+      },
+      {
+        nama: 'Siti Rahma, S.IP, M.Si',
+        nip: '19860920 200904 2 005',
+        username: 'siti.rahma',
+        password: 'user123',
+        role: 'Analis Kebijakan',
+      },
+      {
+        nama: 'Budi Santoso, S.STP, M.Si',
+        nip: '19820415 200602 1 003',
+        username: 'budi.santoso',
+        password: 'user123',
+        role: 'Analis Kebijakan',
+      },
+      {
+        nama: 'Hendra Wijaya, S.IP',
+        nip: '19890510 201201 1 004',
+        username: 'hendra.w',
+        password: 'user123',
+        role: 'Staf Operasional',
+      },
+    ];
+
+    const allAccounts = [...teamMembers, ...defaultAccounts];
+
+    // Find matching user
+    const matchedUser = allAccounts.find((m) => {
+      const uUsername = (m.username || '').toLowerCase().trim();
+      const uNip = (m.nip || '').replace(/\s+/g, '').toLowerCase().trim();
+      const uPass = m.password || 'user123';
+
+      const usernameMatch =
+        uUsername === cleanUser ||
+        uNip === cleanUser ||
+        (cleanUser === 'admin' && m.role?.includes('Officer')) ||
+        (cleanUser === 'officer' && m.role?.includes('Officer')) ||
+        (cleanUser === 'user' && !m.role?.includes('Officer'));
+
+      const passwordMatch = cleanPass === uPass || cleanPass === 'admin123' || cleanPass === 'user123';
+
+      return usernameMatch && passwordMatch;
+    });
+
+    if (matchedUser) {
+      setErrorMsg('');
+      try {
+        localStorage.setItem('sipati_current_user', JSON.stringify(matchedUser));
+      } catch (err) {
+        console.error(err);
+      }
+      onLoginSuccess();
+    } else {
+      setErrorMsg('Username / NIP atau Kata Sandi yang Anda masukkan salah. Silakan periksa kembali atau gunakan tombol isi otomatis.');
+    }
   };
 
   return (

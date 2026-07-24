@@ -94,17 +94,37 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="material-symbols-outlined text-[22px]">history</span>
           </button>
 
-          {/* Profile thumbnail */}
-          <div
-            className="ml-1 w-8 h-8 rounded-full bg-[#E4DCC8] overflow-hidden border border-[#e6e2d9] cursor-pointer"
-            title="Administrator SIPATI"
-          >
-            <img
-              src={adminAvatar}
-              alt="Administrator Profile"
-              className="w-full h-full object-cover"
-            />
-          </div>
+          {/* Current User Info & Profile thumbnail */}
+          {(() => {
+            let currentUser: any = null;
+            try {
+              const saved = localStorage.getItem('sipati_current_user');
+              if (saved) currentUser = JSON.parse(saved);
+            } catch (e) {}
+
+            return (
+              <div className="flex items-center gap-2.5 ml-1">
+                <div className="hidden sm:flex flex-col text-right">
+                  <span className="text-[12px] font-bold text-[#57000f] truncate max-w-[150px]">
+                    {currentUser?.nama || 'Drs. H. Mulyadi, M.Si'}
+                  </span>
+                  <span className="text-[10px] text-[#6E6A61] font-medium">
+                    {currentUser?.role || 'Officer / Administrator'}
+                  </span>
+                </div>
+                <div
+                  className="w-8 h-8 rounded-full bg-[#E4DCC8] overflow-hidden border border-[#e6e2d9] cursor-pointer shrink-0"
+                  title={currentUser?.nama || 'Pengguna SIPATI'}
+                >
+                  <img
+                    src={adminAvatar}
+                    alt="User Profile Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </header>
