@@ -21,6 +21,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onDelete,
 }) => {
   const [title, setTitle] = useState(task.title);
+  const [noSurat, setNoSurat] = useState(task.noSurat || '');
   const [bidang, setBidang] = useState(task.bidang);
   const [pj, setPj] = useState(task.pj === '—' ? '' : task.pj);
   const [status, setStatus] = useState<TaskStatus>(task.status);
@@ -77,7 +78,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const handleDownloadFile = (fileName: string) => {
     downloadStoredFile(fileName, {
       title,
-      noSurat: task.noSurat,
+      noSurat: noSurat || task.noSurat,
       bidang,
       catatan,
     });
@@ -88,6 +89,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     onSave({
       ...task,
       title,
+      noSurat: noSurat.trim() || task.noSurat || `012/SIPATI/2026`,
       bidang,
       pj: pj.trim() ? pj.trim() : '—',
       status,
@@ -123,19 +125,33 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
-          {/* NAMA PEKERJAAN / SURAT */}
-          <div>
-            <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-[#6E6A61] mb-1.5">
-              NAMA PEKERJAAN / SURAT
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230] focus:ring-1 focus:ring-[#b62230]"
-              placeholder="Judul pekerjaan atau nama surat..."
-              required
-            />
+          {/* NAMA PEKERJAAN / SURAT & NOMOR SURAT */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-[#6E6A61] mb-1.5">
+                NAMA PEKERJAAN / SURAT
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230] focus:ring-1 focus:ring-[#b62230]"
+                placeholder="Judul pekerjaan atau nama surat..."
+                required
+              />
+            </div>
+            <div>
+              <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-[#6E6A61] mb-1.5">
+                NOMOR SURAT
+              </label>
+              <input
+                type="text"
+                value={noSurat}
+                onChange={(e) => setNoSurat(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md font-mono text-[12px] text-[#57000f] font-semibold focus:outline-none focus:border-[#b62230] focus:ring-1 focus:ring-[#b62230]"
+                placeholder="e.g. 045/SK/PAN-RI/2026"
+              />
+            </div>
           </div>
 
           {/* BIDANG & PENANGGUNG JAWAB */}

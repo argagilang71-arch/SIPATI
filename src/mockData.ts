@@ -138,7 +138,20 @@ export const INITIAL_TASKS: TaskItem[] = [
 
 export const INITIAL_ARCHIVES: ArchiveItem[] = [
   {
+    id: 'arch-task-5',
+    taskId: 'task-5',
+    title: 'Surat Edaran Menyemarakkan HUT RI',
+    noSurat: '001/SE/PAN-RI/VIII/2026',
+    bidang: 'Manajemen Korespondensi',
+    date: '01 Agustus 2026',
+    status: 'TERVERIFIKASI',
+    fileType: 'pdf',
+    description: 'Telah didistribusikan ke seluruh dinas dan kecamatan. Surat edaran resmi peringatan HUT RI Ke-81.',
+    fileSize: '1.9 MB'
+  },
+  {
     id: 'arch-1',
+    taskId: 'task-1',
     title: 'SK Panitia HUT RI Ke-81 Final',
     noSurat: '045/SK/PAN-RI/VIII/2026',
     bidang: 'Legalisasi Operasional',

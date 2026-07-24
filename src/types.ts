@@ -18,6 +18,7 @@ export type ArchiveStatus = 'TERVERIFIKASI' | 'FINAL' | 'DIUSANGKAN';
 
 export interface ArchiveItem {
   id: string;
+  taskId?: string;
   title: string;
   noSurat: string;
   bidang: string;

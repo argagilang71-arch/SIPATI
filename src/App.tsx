@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   ViewMode,
   TaskItem,
@@ -62,44 +63,73 @@ export default function App() {
     }, 3500);
   };
 
+  // Helper to synchronize completed tasks directly into archives
+  const syncTaskToArchive = (task: TaskItem, currentArchives: ArchiveItem[]): ArchiveItem[] => {
+    if (task.status === 'SELESAI') {
+      const allFiles = [
+        ...(task.buktiDokumen || []),
+        ...(task.buktiSuratDiterima || []),
+        ...(task.draftPekerjaan || []),
+      ];
+      const hasPdf = allFiles.some((f) => f.toLowerCase().endsWith('.pdf'));
+      const hasZip = allFiles.some((f) => f.toLowerCase().endsWith('.zip') || f.toLowerCase().endsWith('.rar'));
+      const fileType: 'pdf' | 'doc' | 'zip' = hasPdf ? 'pdf' : hasZip ? 'zip' : 'doc';
+
+      const existingIndex = currentArchives.findIndex(
+        (a) => a.taskId === task.id || a.title === task.title || (a.noSurat && task.noSurat && a.noSurat === task.noSurat)
+      );
+
+      const formattedNoSurat = task.noSurat || `0${Math.floor(Math.random() * 80) + 10}/SIPATI/VIII/2026`;
+
+      const updatedArchItem: ArchiveItem = {
+        id: existingIndex >= 0 ? currentArchives[existingIndex].id : `arch-${task.id}`,
+        taskId: task.id,
+        title: task.title,
+        noSurat: formattedNoSurat,
+        bidang: task.bidang,
+        date: new Date().toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }),
+        status: 'TERVERIFIKASI',
+        fileType,
+        description:
+          task.catatan ||
+          'Dokumen naskah dinas hasil pekerjaan yang telah diselesaikan dan terverifikasi di Google Drive SIPATI.',
+        fileSize: allFiles.length > 0 ? `${(allFiles.length * 1.2 + 0.8).toFixed(1)} MB` : '1.8 MB',
+      };
+
+      if (existingIndex >= 0) {
+        const next = [...currentArchives];
+        next[existingIndex] = updatedArchItem;
+        return next;
+      } else {
+        return [updatedArchItem, ...currentArchives];
+      }
+    } else {
+      // If task is no longer SELESAI, remove its auto-archive entry
+      return currentArchives.filter((a) => a.taskId !== task.id);
+    }
+  };
+
   // Task Handlers
   const handleSaveTask = (updatedTask: TaskItem) => {
     const exists = tasks.some((t) => t.id === updatedTask.id);
-    let nextTasks: TaskItem[];
+    const nextTasks = exists
+      ? tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t))
+      : [updatedTask, ...tasks];
 
-    if (exists) {
-      nextTasks = tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t));
-    } else {
-      nextTasks = [updatedTask, ...tasks];
-    }
+    const nextArchives = syncTaskToArchive(updatedTask, archives);
 
     setTasks(nextTasks);
+    setArchives(nextArchives);
     setActiveTaskForModal(null);
 
-    // Auto archive if status became SELESAI
     if (updatedTask.status === 'SELESAI') {
-      const alreadyArchived = archives.some((a) => a.title.includes(updatedTask.title));
-      if (!alreadyArchived) {
-        const newArch: ArchiveItem = {
-          id: `arch-${Date.now()}`,
-          title: updatedTask.title,
-          noSurat: updatedTask.noSurat || `SIP/${Date.now().toString().slice(-4)}/VIII/2026`,
-          bidang: updatedTask.bidang,
-          date: new Date().toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          }),
-          status: 'TERVERIFIKASI',
-          fileType: 'doc',
-          description: updatedTask.catatan || 'Dokumen tugas telah diselesaikan dan diverifikasi.',
-          fileSize: '1.5 MB',
-        };
-        setArchives([newArch, ...archives]);
-        showBanner(`Pekerjaan "${updatedTask.title}" telah diselesaikan dan diarsip otomatis.`);
-      } else {
-        showBanner(`Perubahan pekerjaan "${updatedTask.title}" tersimpan.`);
-      }
+      showBanner(
+        `Pekerjaan "${updatedTask.title}" telah diselesaikan & otomatis terdaftar di Arsip Digital (No. Surat: ${updatedTask.noSurat}).`
+      );
     } else {
       showBanner(`Perubahan pekerjaan tersimpan.`);
     }
@@ -107,15 +137,29 @@ export default function App() {
 
   const handleDeleteTask = (taskId: string) => {
     setTasks(tasks.filter((t) => t.id !== taskId));
+    setArchives(archives.filter((a) => a.taskId !== taskId));
     setActiveTaskForModal(null);
     showBanner('Pekerjaan berhasil dihapus.');
   };
 
   const handleUpdateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
-    const updated = tasks.map((t) =>
-      t.id === taskId ? { ...t, status: newStatus } : t
-    );
-    setTasks(updated);
+    const targetTask = tasks.find((t) => t.id === taskId);
+    if (!targetTask) return;
+
+    const updatedTask: TaskItem = { ...targetTask, status: newStatus };
+    const updatedTasks = tasks.map((t) => (t.id === taskId ? updatedTask : t));
+    const nextArchives = syncTaskToArchive(updatedTask, archives);
+
+    setTasks(updatedTasks);
+    setArchives(nextArchives);
+
+    if (newStatus === 'SELESAI') {
+      showBanner(
+        `Pekerjaan "${updatedTask.title}" selesai & otomatis diarsipkan dengan No. Surat: ${updatedTask.noSurat}.`
+      );
+    } else {
+      showBanner(`Status pekerjaan diperbarui.`);
+    }
   };
 
   const handleCreateNewTask = () => {
@@ -128,7 +172,7 @@ export default function App() {
       catatan: '',
       buktiDokumen: [],
       buktiSuratDiterima: [],
-      noSurat: `0${tasks.length + 10}/PAN-RI/VIII/2026`,
+      noSurat: `0${tasks.length + 11}/SIPATI/VIII/2026`,
       dateCreated: new Date().toISOString().split('T')[0],
     };
     setActiveTaskForModal(newTask);
@@ -226,29 +270,49 @@ export default function App() {
   // Render standalone pages without sidebar if Landing or Login
   if (currentView === 'landing') {
     return (
-      <LandingPage
-        onEnterApp={() => {
-          if (requireLogin && !isAuthenticated) {
-            setCurrentView('login');
-          } else {
-            setCurrentView('pekerjaan');
-          }
-        }}
-        onOpenLogin={() => setCurrentView('login')}
-      />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="landing"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <LandingPage
+            onEnterApp={() => {
+              if (requireLogin && !isAuthenticated) {
+                setCurrentView('login');
+              } else {
+                setCurrentView('pekerjaan');
+              }
+            }}
+            onOpenLogin={() => setCurrentView('login')}
+          />
+        </motion.div>
+      </AnimatePresence>
     );
   }
 
   if (currentView === 'login') {
     return (
-      <LoginPage
-        onLoginSuccess={() => {
-          setIsAuthenticated(true);
-          setCurrentView('pekerjaan');
-          showBanner('Login Berhasil! Selamat datang di SIPATI.');
-        }}
-        onBackToLanding={() => setCurrentView('landing')}
-      />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="login"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.25 }}
+        >
+          <LoginPage
+            onLoginSuccess={() => {
+              setIsAuthenticated(true);
+              setCurrentView('pekerjaan');
+              showBanner('Login Berhasil! Selamat datang di SIPATI.');
+            }}
+            onBackToLanding={() => setCurrentView('landing')}
+          />
+        </motion.div>
+      </AnimatePresence>
     );
   }
 
@@ -290,59 +354,69 @@ export default function App() {
 
         {/* Main View Canvas */}
         <main className="flex-1 pt-24 px-4 md:px-[34px] pb-12 w-full max-w-[1200px] mx-auto overflow-y-auto">
-          {currentView === 'pekerjaan' && (
-            <DaftarPekerjaan
-              tasks={tasks}
-              onOpenTaskDetail={(task) => setActiveTaskForModal(task)}
-              onAddTask={handleCreateNewTask}
-              onUpdateStatus={handleUpdateTaskStatus}
-            />
-          )}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentView}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {currentView === 'pekerjaan' && (
+                <DaftarPekerjaan
+                  tasks={tasks}
+                  onOpenTaskDetail={(task) => setActiveTaskForModal(task)}
+                  onAddTask={handleCreateNewTask}
+                  onUpdateStatus={handleUpdateTaskStatus}
+                />
+              )}
 
-          {currentView === 'arsip' && (
-            <ArsipDigital
-              archives={archives}
-              onViewArchive={(item) => setActiveArchiveForViewer(item)}
-              onDownloadArchive={handleDownloadArchiveFile}
-              onAddArchive={handleAddArchive}
-            />
-          )}
+              {currentView === 'arsip' && (
+                <ArsipDigital
+                  archives={archives}
+                  onViewArchive={(item) => setActiveArchiveForViewer(item)}
+                  onDownloadArchive={handleDownloadArchiveFile}
+                  onAddArchive={handleAddArchive}
+                />
+              )}
 
-          {currentView === 'ringkasan' && (
-            <RingkasanDashboard
-              tasks={tasks}
-              archives={archives}
-              onOpenSendEmailModal={() => setIsSendEmailModalOpen(true)}
-              onDownloadPdf={handleDownloadReportPdf}
-              onViewAllVerifiedList={() => setCurrentView('arsip')}
-            />
-          )}
+              {currentView === 'ringkasan' && (
+                <RingkasanDashboard
+                  tasks={tasks}
+                  archives={archives}
+                  onOpenSendEmailModal={() => setIsSendEmailModalOpen(true)}
+                  onDownloadPdf={handleDownloadReportPdf}
+                  onViewAllVerifiedList={() => setCurrentView('arsip')}
+                />
+              )}
 
-          {currentView === 'template' && (
-            <TemplateSurat
-              templates={templates}
-              onCreateTaskFromTemplate={handleCreateTaskFromTemplate}
-              onSaveTemplate={handleSaveTemplate}
-              onDeleteTemplate={handleDeleteTemplate}
-            />
-          )}
+              {currentView === 'template' && (
+                <TemplateSurat
+                  templates={templates}
+                  onCreateTaskFromTemplate={handleCreateTaskFromTemplate}
+                  onSaveTemplate={handleSaveTemplate}
+                  onDeleteTemplate={handleDeleteTemplate}
+                />
+              )}
 
-          {currentView === 'pengaturan' && (
-            <PengaturanView
-              requireLogin={requireLogin}
-              onToggleRequireLogin={(val) => {
-                setRequireLogin(val);
-                showBanner(
-                  val
-                    ? 'Syarat login wajib sebelum masuk aplikasi DIAKTIFKAN.'
-                    : 'Syarat login dinonaktifkan.'
-                );
-              }}
-              isAuthenticated={isAuthenticated}
-              onLogout={handleLogout}
-            />
-          )}
-          {currentView === 'appscript' && <AppsScriptView />}
+              {currentView === 'pengaturan' && (
+                <PengaturanView
+                  requireLogin={requireLogin}
+                  onToggleRequireLogin={(val) => {
+                    setRequireLogin(val);
+                    showBanner(
+                      val
+                        ? 'Syarat login wajib sebelum masuk aplikasi DIAKTIFKAN.'
+                        : 'Syarat login dinonaktifkan.'
+                    );
+                  }}
+                  isAuthenticated={isAuthenticated}
+                  onLogout={handleLogout}
+                />
+              )}
+              {currentView === 'appscript' && <AppsScriptView />}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
 

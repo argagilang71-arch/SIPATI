@@ -68,7 +68,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       </button>
 
       {/* Main Login Card Canvas */}
-      <div className="relative z-10 w-full max-w-[440px] bg-[#FFFDF8] border border-[#E4DCC8] rounded-lg p-6 sm:p-8 shadow-sm overflow-hidden space-y-6">
+      <div className="relative z-10 w-full max-w-[420px] bg-[#FFFDF8] border border-[#E4DCC8] rounded-xl p-8 sm:p-10 shadow-sm overflow-hidden space-y-6">
         {/* Brand Identity Header */}
         <div className="text-center relative z-10">
           <img
@@ -79,62 +79,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <h1 className="font-['Lora',serif] text-[28px] font-bold text-[#57000f] mb-1">
             SIPATI
           </h1>
-          <p className="font-['Inter',sans-serif] text-[13px] text-[#6E6A61]">
-            Bagian Tata Pemerintahan Sekretariat Daerah Kabupaten Kubu Raya
+          <p className="font-['Inter',sans-serif] text-[13px] text-[#6E6A61] leading-snug">
+            Bagian Tata Pemerintahan
+            <br />
+            Sekretariat Daerah Kabupaten Kubu Raya
           </p>
         </div>
 
-        {/* PETUNJUK KREDENSIAL AKUN OFFICER */}
-        <div className="bg-[#fdfaf2] border border-[#E4DCC8] rounded-lg p-3.5 text-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="font-bold text-[#57000f] flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-              <span className="material-symbols-outlined text-sm">key</span>
-              Petunjuk Akun Login Officer / Staf
-            </span>
-            <button
-              type="button"
-              onClick={() => setShowAccountsInfo(!showAccountsInfo)}
-              className="text-[#b62230] font-semibold text-[11px] underline cursor-pointer"
-            >
-              {showAccountsInfo ? 'Sembunyikan' : 'Lihat Akun'}
-            </button>
-          </div>
-
-          {showAccountsInfo && (
-            <div className="space-y-2 pt-1 border-t border-[#E4DCC8]/60 text-[#20201D]">
-              <div className="p-2 bg-white border border-[#E4DCC8] rounded text-[11px] space-y-1">
-                <div className="font-bold text-[#57000f]">Akun Officer / Kabag Tata Pemerintahan:</div>
-                <div className="font-mono text-[#6E6A61]">Username / NIP: <strong className="text-[#1c1c16]">197805122003121002</strong></div>
-                <div className="font-mono text-[#6E6A61]">Password: <strong className="text-[#1c1c16]">admin123</strong></div>
-                <button
-                  type="button"
-                  onClick={fillOfficerCredentials}
-                  className="mt-1 w-full py-1 px-2 bg-[#b62230] text-white rounded font-bold text-[10.5px] uppercase tracking-wider hover:bg-[#881d29] transition cursor-pointer flex items-center justify-center gap-1"
-                >
-                  <span className="material-symbols-outlined text-xs">touch_app</span>
-                  <span>Gunakan Akun Officer Ini (Isi Otomatis)</span>
-                </button>
-              </div>
-
-              <div className="p-2 bg-white border border-[#E4DCC8] rounded text-[11px] space-y-1">
-                <div className="font-bold text-[#20201D]">Akun Staf Analis Kebijakan:</div>
-                <div className="font-mono text-[#6E6A61]">Username: <strong className="text-[#1c1c16]">siti.rahma</strong> | Password: <strong className="text-[#1c1c16]">user123</strong></div>
-                <button
-                  type="button"
-                  onClick={fillStaffCredentials}
-                  className="mt-1 text-[#b62230] hover:underline font-bold text-[10.5px] cursor-pointer"
-                >
-                  Isi Akun Staf Siti Rahma
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Authentication Form */}
-        <form onSubmit={handleSubmit} className="relative z-10 space-y-4">
+        <form onSubmit={handleSubmit} className="relative z-10 space-y-4 pt-2">
           {errorMsg && (
-            <div className="p-3 bg-[#ffdad6] text-[#ba1a1a] text-xs rounded border border-[#ba1a1a]/20">
+            <div className="p-3 bg-[#ffdad6] text-[#ba1a1a] text-xs rounded-lg border border-[#ba1a1a]/20 font-medium">
               {errorMsg}
             </div>
           )}
@@ -143,31 +98,28 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <div>
             <label
               htmlFor="username"
-              className="block font-['Inter',sans-serif] font-semibold text-[11px] tracking-wider uppercase text-[#1c1c16] mb-1"
+              className="block font-['Inter',sans-serif] font-semibold text-[11px] tracking-wider uppercase text-[#1c1c16] mb-1.5"
             >
               Username / NIP Pengguna
             </label>
             <div className="relative">
-              <span
-                className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6E6A61] text-[18px] pointer-events-none"
-              >
+              <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6E6A61] text-[18px] pointer-events-none">
                 person
               </span>
               <input
                 id="username"
                 type="text"
-                required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="197805122003121002 atau siti.rahma"
-                className="w-full pl-9 pr-4 py-2 bg-[#ffffff] border border-[#E4DCC8] rounded font-mono text-[13px] text-[#20201D] focus:outline-none focus:border-[#b62230]"
+                placeholder="Masukkan Username / NIP"
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#E4DCC8] rounded-lg font-['Inter',sans-serif] text-[13px] text-[#20201D] focus:outline-none focus:border-[#b62230] focus:ring-1 focus:ring-[#b62230] transition"
               />
             </div>
           </div>
 
           {/* Password Input */}
           <div>
-            <div className="flex justify-between items-center mb-1">
+            <div className="flex justify-between items-center mb-1.5">
               <label
                 htmlFor="password"
                 className="block font-['Inter',sans-serif] font-semibold text-[11px] tracking-wider uppercase text-[#1c1c16]"
@@ -176,31 +128,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </label>
               <button
                 type="button"
-                onClick={() => alert('Password default officer adalah "admin123". Anda dapat mengubahnya di menu Pengaturan.')}
-                className="font-['Inter',sans-serif] font-semibold text-[11px] text-[#b62230] hover:text-[#881d29] transition-colors cursor-pointer"
+                onClick={() =>
+                  alert(
+                    'Lupa Password? Silakan hubungi Officer Administrator Bagian Tata Pemerintahan.'
+                  )
+                }
+                className="font-['Inter',sans-serif] font-semibold text-[11px] text-[#b62230] hover:text-[#881d29] transition cursor-pointer"
               >
                 Lupa Password?
               </button>
             </div>
             <div className="relative">
-              <span
-                className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6E6A61] text-[18px] pointer-events-none"
-              >
+              <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6E6A61] text-[18px] pointer-events-none">
                 lock
               </span>
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-9 pr-10 py-2 bg-[#ffffff] border border-[#E4DCC8] rounded font-mono text-[13px] text-[#20201D] focus:outline-none focus:border-[#b62230]"
+                placeholder="Masukkan Kata Sandi"
+                className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#E4DCC8] rounded-lg font-['Inter',sans-serif] text-[13px] text-[#20201D] focus:outline-none focus:border-[#b62230] focus:ring-1 focus:ring-[#b62230] transition"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6E6A61] hover:text-[#574141] cursor-pointer"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6E6A61] hover:text-[#57000f] cursor-pointer"
+                title="Tampilkan / Sembunyikan Password"
               >
                 <span className="material-symbols-outlined text-[18px]">
                   {showPassword ? 'visibility_off' : 'visibility'}
@@ -213,12 +167,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full bg-[#b62230] text-white font-['Inter',sans-serif] font-bold text-[11.5px] tracking-wider uppercase py-3 px-4 rounded hover:bg-[#881d29] transition-colors flex justify-center items-center gap-2 shadow-sm cursor-pointer active:scale-95"
+              className="w-full bg-[#b62230] text-white font-['Inter',sans-serif] font-bold text-[11.5px] tracking-wider uppercase py-3 px-4 rounded-lg hover:bg-[#881d29] transition flex justify-center items-center gap-2 shadow-xs cursor-pointer active:scale-98"
             >
               <span>Masuk Ke Sistem Aplikasi</span>
               <span className="material-symbols-outlined text-[18px]">
                 login
               </span>
+            </button>
+          </div>
+
+          {/* Subtle Demo Quick-Fill Footnote */}
+          <div className="pt-3 border-t border-[#E4DCC8]/60 flex items-center justify-between text-[11px] text-[#6E6A61]">
+            <span>Akun Demo Officer:</span>
+            <button
+              type="button"
+              onClick={fillOfficerCredentials}
+              className="text-[#b62230] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-xs">key</span>
+              <span>Isi Akun Officer</span>
             </button>
           </div>
         </form>
