@@ -52,4 +52,15 @@ export interface ProposalItem {
   dateSubmitted: string;
 }
 
+export interface TeamMember {
+  id: string;
+  nama: string;
+  nip: string;
+  jabatan: string;
+  subBagian: string;
+  username: string;
+  password?: string;
+  role: 'Officer / Administrator' | 'Analis Kebijakan' | 'Staf Operasional';
+}
+
 export type ViewMode = 'landing' | 'login' | 'ringkasan' | 'pekerjaan' | 'template' | 'arsip' | 'pengaturan' | 'appscript';

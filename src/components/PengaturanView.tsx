@@ -2,17 +2,14 @@ import React, { useState, useEffect } from 'react';
 import garudaEmblemImg from '../assets/images/garuda_pancasila_emblem_1784830236371.jpg';
 import { getDriveConfig, saveDriveConfig, openInGoogleDrive, GoogleDriveConfig } from '../utils/fileStorage';
 import { GoogleDriveManager } from './GoogleDriveManager';
-
-export interface TeamMember {
-  id: string;
-  nama: string;
-  nip: string;
-  jabatan: string;
-  subBagian: string;
-  username: string;
-  password?: string;
-  role: 'Officer / Administrator' | 'Analis Kebijakan' | 'Staf Operasional';
-}
+import {
+  saveTeamMembersToCloud,
+  loadTeamMembersFromCloud,
+  subscribeTeamMembersCloud,
+  saveSettingsToCloud,
+  loadSettingsFromCloud,
+} from '../utils/firebaseSync';
+import { TeamMember } from '../types';
 
 interface PengaturanViewProps {
   requireLogin?: boolean;
@@ -145,14 +142,33 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
     role: 'Analis Kebijakan',
   });
 
-  // Load persisted settings and members on mount
+  // Load persisted settings and members from cloud on mount
   useEffect(() => {
-    try {
-      const savedMembers = localStorage.getItem('sipati_team_members');
-      if (savedMembers) {
-        setAnggotaList(JSON.parse(savedMembers));
+    // Initial load from cloud
+    loadTeamMembersFromCloud().then((members) => {
+      if (members && members.length > 0) {
+        setAnggotaList(members);
       }
+    });
 
+    loadSettingsFromCloud().then((settings) => {
+      if (settings) {
+        if (settings.namaInstansi) setNamaInstansi(settings.namaInstansi);
+        if (settings.namaAdmin) setNamaAdmin(settings.namaAdmin);
+        if (settings.nipAdmin) setNipAdmin(settings.nipAdmin);
+        if (settings.emailNotif) setEmailNotif(settings.emailNotif);
+        if (settings.autoArchive !== undefined) setAutoArchive(settings.autoArchive);
+      }
+    });
+
+    // Realtime subscription for instant cross-device updates
+    const unsubscribe = subscribeTeamMembersCloud((cloudMembers) => {
+      if (cloudMembers && cloudMembers.length > 0) {
+        setAnggotaList(cloudMembers);
+      }
+    });
+
+    try {
       const savedInstansi = localStorage.getItem('sipati_nama_instansi');
       if (savedInstansi) setNamaInstansi(savedInstansi);
 
@@ -170,6 +186,8 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
     } catch (e) {
       console.error(e);
     }
+
+    return () => unsubscribe();
   }, []);
 
   const handleOpenAddMember = () => {
@@ -204,7 +222,7 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
     if (confirm('Apakah Anda yakin ingin menghapus anggota ini dari daftar?')) {
       const newList = anggotaList.filter((m) => m.id !== id);
       setAnggotaList(newList);
-      localStorage.setItem('sipati_team_members', JSON.stringify(newList));
+      saveTeamMembersToCloud(newList);
     }
   };
 
@@ -229,20 +247,22 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
     }
 
     setAnggotaList(newList);
-    localStorage.setItem('sipati_team_members', JSON.stringify(newList));
+    saveTeamMembersToCloud(newList);
     setIsMemberModalOpen(false);
   };
 
-  const handleSaveAll = (e: React.FormEvent) => {
+  const handleSaveAll = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       saveDriveConfig(driveConfig);
-      localStorage.setItem('sipati_team_members', JSON.stringify(anggotaList));
-      localStorage.setItem('sipati_nama_instansi', namaInstansi);
-      localStorage.setItem('sipati_nama_admin', namaAdmin);
-      localStorage.setItem('sipati_nip_admin', nipAdmin);
-      localStorage.setItem('sipati_email_notif', emailNotif);
-      localStorage.setItem('sipati_auto_archive', JSON.stringify(autoArchive));
+      await saveTeamMembersToCloud(anggotaList);
+      await saveSettingsToCloud({
+        namaInstansi,
+        namaAdmin,
+        nipAdmin,
+        emailNotif,
+        autoArchive,
+      });
 
       setSaved(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
