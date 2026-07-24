@@ -145,13 +145,28 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
     role: 'Analis Kebijakan',
   });
 
-  // Load persisted members if available
+  // Load persisted settings and members on mount
   useEffect(() => {
     try {
       const savedMembers = localStorage.getItem('sipati_team_members');
       if (savedMembers) {
         setAnggotaList(JSON.parse(savedMembers));
       }
+
+      const savedInstansi = localStorage.getItem('sipati_nama_instansi');
+      if (savedInstansi) setNamaInstansi(savedInstansi);
+
+      const savedAdmin = localStorage.getItem('sipati_nama_admin');
+      if (savedAdmin) setNamaAdmin(savedAdmin);
+
+      const savedNip = localStorage.getItem('sipati_nip_admin');
+      if (savedNip) setNipAdmin(savedNip);
+
+      const savedEmail = localStorage.getItem('sipati_email_notif');
+      if (savedEmail) setEmailNotif(savedEmail);
+
+      const savedArchive = localStorage.getItem('sipati_auto_archive');
+      if (savedArchive !== null) setAutoArchive(JSON.parse(savedArchive));
     } catch (e) {
       console.error(e);
     }
@@ -220,10 +235,22 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
 
   const handleSaveAll = (e: React.FormEvent) => {
     e.preventDefault();
-    saveDriveConfig(driveConfig);
-    localStorage.setItem('sipati_team_members', JSON.stringify(anggotaList));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    try {
+      saveDriveConfig(driveConfig);
+      localStorage.setItem('sipati_team_members', JSON.stringify(anggotaList));
+      localStorage.setItem('sipati_nama_instansi', namaInstansi);
+      localStorage.setItem('sipati_nama_admin', namaAdmin);
+      localStorage.setItem('sipati_nip_admin', nipAdmin);
+      localStorage.setItem('sipati_email_notif', emailNotif);
+      localStorage.setItem('sipati_auto_archive', JSON.stringify(autoArchive));
+
+      setSaved(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => setSaved(false), 3500);
+    } catch (err) {
+      console.error('Gagal menyimpan pengaturan:', err);
+      alert('Terjadi kesalahan saat menyimpan pengaturan.');
+    }
   };
 
   const toggleShowPassword = (id: string) => {
@@ -672,12 +699,13 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
         </div>
 
         {/* Submit */}
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-2">
           <button
             type="submit"
-            className="bg-[#b62230] hover:bg-[#57000f] text-white font-['Inter',sans-serif] font-semibold text-[12px] uppercase tracking-wider px-6 py-3 rounded-lg shadow-2xs transition-all cursor-pointer active:scale-95"
+            className="bg-[#b62230] hover:bg-[#57000f] text-white font-['Inter',sans-serif] font-bold text-[13px] uppercase tracking-wider px-7 py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-95 flex items-center gap-2"
           >
-            Simpan Seluruh Pengaturan
+            <span className="material-symbols-outlined text-lg">save</span>
+            <span>Simpan Seluruh Pengaturan</span>
           </button>
         </div>
       </form>
