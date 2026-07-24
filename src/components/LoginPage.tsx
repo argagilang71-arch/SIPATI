@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import garudaEmblemImg from '../assets/images/garuda_pancasila_emblem_1784830236371.jpg';
 
 interface LoginPageProps {
@@ -14,28 +14,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [showAccountsInfo, setShowAccountsInfo] = useState(true);
-
-  // Available default accounts
-  const defaultOfficer = {
-    nama: 'Drs. H. Mulyadi, M.Si',
-    nip: '19780512 200312 1 002',
-    username: '197805122003121002',
-    password: 'admin123',
-    role: 'Officer / Administrator',
-  };
-
-  const fillOfficerCredentials = () => {
-    setUsername('197805122003121002');
-    setPassword('admin123');
-    setErrorMsg('');
-  };
-
-  const fillStaffCredentials = () => {
-    setUsername('siti.rahma');
-    setPassword('user123');
-    setErrorMsg('');
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +21,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     const cleanPass = password.trim();
 
     if (!cleanUser || !cleanPass) {
-      setErrorMsg('Mohon isi Username / NIP dan Kata Sandi.');
+      setErrorMsg('Mohon masukkan Username / NIP dan Kata Sandi.');
       return;
     }
 
@@ -61,6 +39,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     // Default accounts fallback
     const defaultAccounts = [
       {
+        id: 'm-1',
         nama: 'Drs. H. Mulyadi, M.Si',
         nip: '19780512 200312 1 002',
         username: '197805122003121002',
@@ -68,6 +47,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         role: 'Officer / Administrator',
       },
       {
+        id: 'm-2',
         nama: 'Siti Rahma, S.IP, M.Si',
         nip: '19860920 200904 2 005',
         username: 'siti.rahma',
@@ -75,6 +55,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         role: 'Analis Kebijakan',
       },
       {
+        id: 'm-3',
         nama: 'Budi Santoso, S.STP, M.Si',
         nip: '19820415 200602 1 003',
         username: 'budi.santoso',
@@ -82,6 +63,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         role: 'Analis Kebijakan',
       },
       {
+        id: 'm-4',
         nama: 'Hendra Wijaya, S.IP',
         nip: '19890510 201201 1 004',
         username: 'hendra.w',
@@ -90,22 +72,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       },
     ];
 
+    // Priority given to custom created team members in localStorage
     const allAccounts = [...teamMembers, ...defaultAccounts];
 
-    // Find matching user
+    // Find matching user from explicit list with strict password check
     const matchedUser = allAccounts.find((m) => {
       const uUsername = (m.username || '').toLowerCase().trim();
       const uNip = (m.nip || '').replace(/\s+/g, '').toLowerCase().trim();
-      const uPass = m.password || 'user123';
+      const uPass = (m.password || '').trim();
 
       const usernameMatch =
         uUsername === cleanUser ||
         uNip === cleanUser ||
         (cleanUser === 'admin' && m.role?.includes('Officer')) ||
-        (cleanUser === 'officer' && m.role?.includes('Officer')) ||
-        (cleanUser === 'user' && !m.role?.includes('Officer'));
+        (cleanUser === 'officer' && m.role?.includes('Officer'));
 
-      const passwordMatch = cleanPass === uPass || cleanPass === 'admin123' || cleanPass === 'user123';
+      const passwordMatch = cleanPass === uPass;
 
       return usernameMatch && passwordMatch;
     });
@@ -119,7 +101,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       }
       onLoginSuccess();
     } else {
-      setErrorMsg('Username / NIP atau Kata Sandi yang Anda masukkan salah. Silakan periksa kembali atau gunakan tombol isi otomatis.');
+      setErrorMsg('Username / NIP atau Kata Sandi yang Anda masukkan salah. Akses aplikasi dibatasi hanya untuk akun yang terdaftar.');
     }
   };
 
@@ -253,17 +235,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             </button>
           </div>
 
-          {/* Subtle Demo Quick-Fill Footnote */}
-          <div className="pt-3 border-t border-[#E4DCC8]/60 flex items-center justify-between text-[11px] text-[#6E6A61]">
-            <span>Akun Demo Officer:</span>
-            <button
-              type="button"
-              onClick={fillOfficerCredentials}
-              className="text-[#b62230] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-xs">key</span>
-              <span>Isi Akun Officer</span>
-            </button>
+          {/* Security footnote */}
+          <div className="pt-3 border-t border-[#E4DCC8]/60 text-center">
+            <p className="text-[11px] text-[#6E6A61] flex items-center justify-center gap-1">
+              <span className="material-symbols-outlined text-xs text-[#2f6b44]">lock</span>
+              <span>Akses otentikasi terenkripsi &amp; dibatasi secara resmi untuk staf terdaftar.</span>
+            </p>
           </div>
         </form>
       </div>
