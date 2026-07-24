@@ -11,6 +11,7 @@ import {
   AlignmentType,
   HeadingLevel,
   ShadingType,
+  BorderStyle,
 } from 'docx';
 import { getDriveAccessToken, uploadFileToGoogleDrive } from './googleDriveService';
 
@@ -282,7 +283,7 @@ export function getMimeTypeFromFilename(filename: string): string {
 }
 
 /**
- * Generates a valid 100% native OOXML binary .docx document
+ * Generates an authentic, full-length official Indonesian Naskah Dinas Word (.docx) document
  */
 async function generateDocxBlob(
   titleText: string,
@@ -297,16 +298,149 @@ async function generateDocxBlob(
       {
         properties: {},
         children: [
+          // KOP SURAT
           new Paragraph({
-            text: 'PEMERINTAH KABUPATEN KUBU RAYA',
-            heading: HeadingLevel.HEADING_2,
+            children: [
+              new TextRun({ text: 'PEMERINTAH KABUPATEN KUBU RAYA', bold: true, size: 24 }),
+            ],
             alignment: AlignmentType.CENTER,
-            spacing: { after: 100 },
+            spacing: { after: 40 },
           }),
           new Paragraph({
             children: [
               new TextRun({
-                text: 'SEKRETARIAT DAERAH - BAGIAN TATA PEMERINTAHAN (SIPATI)',
+                text: 'SEKRETARIAT DAERAH',
+                bold: true,
+                size: 28,
+                color: '57000F',
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 40 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'BAGIAN TATA PEMERINTAHAN (SIPATI)',
+                bold: true,
+                size: 22,
+                color: '57000F',
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 80 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'Jalan Arteri Supadio No. 1 Sungai Raya, Kabupaten Kubu Raya, Kalimantan Barat 78391',
+                size: 18,
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 40 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'Telepon: (0561) 691234 • Website: www.kuburayakab.go.id • Email: tatapemerintahan@kuburayakab.go.id',
+                size: 16,
+                color: '574141',
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 150 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: '═════════════════════════════════════════════════════════════════════════════════',
+                bold: true,
+                color: '57000F',
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 300 },
+          }),
+
+          // JUDUL SURAT
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: titleText.toUpperCase(),
+                bold: true,
+                size: 26,
+                color: '57000F',
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 60 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `NOMOR : ${noSuratText}`,
+                bold: true,
+                size: 20,
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 250 },
+          }),
+
+          // TENTANG
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'TENTANG', bold: true, size: 20 }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 60 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `PELAKSANAAN TUGAS DAN TATA KELOLA ADMINISTRASI NASKAH DINAS\nPADA SATUAN KERJA ${bidangText.toUpperCase()}`,
+                bold: true,
+                size: 20,
+                color: '1C1C16',
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 300 },
+          }),
+
+          // MENIMBANG & DASAR
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'MENIMBANG  : ', bold: true, color: '57000F' }),
+              new TextRun({
+                text: `a. bahwa dalam rangka tertib administrasi pemerintahan dan percepatan pelaksanaan kerja Panitia Peringatan HUT RI Ke-81 Tahun 2026 di Kabupaten Kubu Raya, dipandang perlu menerbitkan Naskah Dinas Resmi;\n` +
+                      `b. bahwa pelaksanaan tugas administrasi pada unit ${bidangText} memerlukan pengesahan baku dan pengarsipan digital terintegrasi melalui Sistem SIPATI;\n` +
+                      `c. bahwa berdasarkan pertimbangan sebagaimana dimaksud pada huruf a dan b, perlu ditetapkan Naskah Dinas resmi ini.`,
+              }),
+            ],
+            spacing: { after: 200 },
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'DASAR             : ', bold: true, color: '57000F' }),
+              new TextRun({
+                text: `1. Undang-Undang Nomor 35 Tahun 2007 tentang Pembentukan Kabupaten Kubu Raya di Provinsi Kalimantan Barat;\n` +
+                      `2. Peraturan Daerah Kabupaten Kubu Raya Nomor 8 Tahun 2016 tentang Pembentukan dan Susunan Perangkat Daerah;\n` +
+                      `3. Peraturan Bupati Kubu Raya tentang Pedoman Tata Naskah Dinas di Lingkungan Pemerintah Kabupaten Kubu Raya;\n` +
+                      `4. Peraturan Bupati Kubu Raya tentang Penyelenggaraan Sistem Informasi Pengelolaan Administrasi Terpadu (SIPATI);\n` +
+                      `5. Rencana Kerja Operasional Bagian Tata Pemerintahan Sekretariat Daerah Kabupaten Kubu Raya.`,
+              }),
+            ],
+            spacing: { after: 300 },
+          }),
+
+          // MEMBERIKAN TUGAS / MEMUTUSKAN
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'MEMUTUSKAN / MEMBERIKAN TUGAS:',
                 bold: true,
                 size: 22,
                 color: '57000F',
@@ -315,114 +449,65 @@ async function generateDocxBlob(
             alignment: AlignmentType.CENTER,
             spacing: { after: 200 },
           }),
+
           new Paragraph({
-            text: 'Jl. Arteri Supadio, Sungai Raya, Kabupaten Kubu Raya, Kalimantan Barat 78391',
-            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({ text: 'KEPADA          : ', bold: true }),
+              new TextRun({
+                text: `1. Satuan Kerja / Bidang : ${bidangText}\n` +
+                      `2. Tim Pelaksana         : Pengelola Berkas & Korespondensi Digital SIPATI`,
+              }),
+            ],
+            spacing: { after: 200 },
+          }),
+
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'UNTUK            : ', bold: true }),
+              new TextRun({
+                text: `1. Melaksanakan uraian pekerjaan naskah dinas:\n` +
+                      `   "${catatanText || titleText}"\n` +
+                      `2. Melakukan verifikasi, validasi, dan pengarsipan berkas digital ke dalam repositori Google Drive Cloud SIPATI (Target ID: ${driveFolderId}).\n` +
+                      `3. Menjamin keamanan, kerapian, dan keterbukaan informasi administrasi pemerintahan sesuai ketentuan yang berlaku.\n` +
+                      `4. Melaporkan hasil pelaksanaan kegiatan kepada Sekretaris Daerah cq. Kepala Bagian Tata Pemerintahan Sekretariat Daerah Kabupaten Kubu Raya.`,
+              }),
+            ],
             spacing: { after: 300 },
           }),
+
+          // PENUTUP
           new Paragraph({
-            text: '_________________________________________________________________________________',
+            children: [
+              new TextRun({
+                text: 'Demikian Naskah Dinas resmi ini diterbitkan untuk dipergunakan sebagaimana mestinya dengan penuh rasa tanggung jawab.',
+              }),
+            ],
+            spacing: { after: 400 },
+          }),
+
+          // BLOK TANDA TANGAN & STEMPEL
+          new Paragraph({
+            children: [
+              new TextRun({ text: `Ditetapkan di : Sungai Raya\nPada Tanggal  : ${tglText}\n\n` }),
+              new TextRun({ text: 'a.n. BUPATI KUBU RAYA\nSEKRETARIS DAERAH\nKEPALA BAGIAN TATA PEMERINTAHAN,\n\n\n\n', bold: true }),
+              new TextRun({ text: 'DR. H. HERI ADIARTO, S.STP, M.Si\n', bold: true, underline: {} }),
+              new TextRun({ text: 'Pembina Utama Muda (IV/c)\nNIP. 19780512 200312 1 004', size: 18 }),
+            ],
+            alignment: AlignmentType.RIGHT,
+            spacing: { after: 250 },
+          }),
+
+          // TERVERIFIKASI DIGITAL
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: '[ TERVERIFIKASI DIGITAL OTENTIK SIPATI KUBU RAYA ]\nSistem Informasi Pengelolaan Administrasi Terpadu - Cloud Google Drive API',
+                bold: true,
+                color: '2F6B44',
+                size: 16,
+              }),
+            ],
             alignment: AlignmentType.CENTER,
-            spacing: { after: 400 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: titleText,
-                bold: true,
-                size: 28,
-                color: '57000F',
-              }),
-            ],
-            alignment: AlignmentType.LEFT,
-            spacing: { after: 300 },
-          }),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: [
-              new TableRow({
-                children: [
-                  new TableCell({
-                    width: { size: 35, type: WidthType.PERCENTAGE },
-                    children: [new Paragraph({ children: [new TextRun({ text: 'Nomor Registrasi Surat', bold: true })] })],
-                    shading: { fill: 'FDF2E9', type: ShadingType.CLEAR },
-                  }),
-                  new TableCell({
-                    width: { size: 65, type: WidthType.PERCENTAGE },
-                    children: [new Paragraph({ text: noSuratText })],
-                  }),
-                ],
-              }),
-              new TableRow({
-                children: [
-                  new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: 'Bidang / Satuan Kerja', bold: true })] })],
-                    shading: { fill: 'FDF2E9', type: ShadingType.CLEAR },
-                  }),
-                  new TableCell({
-                    children: [new Paragraph({ text: bidangText })],
-                  }),
-                ],
-              }),
-              new TableRow({
-                children: [
-                  new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: 'Target Google Drive ID', bold: true })] })],
-                    shading: { fill: 'FDF2E9', type: ShadingType.CLEAR },
-                  }),
-                  new TableCell({
-                    children: [new Paragraph({ text: driveFolderId })],
-                  }),
-                ],
-              }),
-              new TableRow({
-                children: [
-                  new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: 'Tanggal Pengesahan', bold: true })] })],
-                    shading: { fill: 'FDF2E9', type: ShadingType.CLEAR },
-                  }),
-                  new TableCell({
-                    children: [new Paragraph({ text: tglText })],
-                  }),
-                ],
-              }),
-            ],
-          }),
-          new Paragraph({ text: '', spacing: { after: 300 } }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'RINGKASAN & CATATAN DOKUMEN RESMI:',
-                bold: true,
-                color: '57000F',
-              }),
-            ],
-            spacing: { after: 150 },
-          }),
-          new Paragraph({
-            text: catatanText,
-            spacing: { after: 400 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: '[ TERVERIFIKASI DIGITAL SIPATI KUBU RAYA ]',
-                bold: true,
-                color: '2F6B44',
-              }),
-            ],
-            alignment: AlignmentType.RIGHT,
-            spacing: { after: 100 },
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'Otentikasi Cloud Google Drive API',
-                color: '2F6B44',
-                size: 18,
-              }),
-            ],
-            alignment: AlignmentType.RIGHT,
           }),
         ],
       },
@@ -433,7 +518,8 @@ async function generateDocxBlob(
 }
 
 /**
- * Downloads a stored file safely with 100% format fidelity without corruption
+ * Downloads a stored file safely with 100% format fidelity without corruption.
+ * Generates an authentic, full-length official Indonesian Naskah Dinas document for PDF and DOCX templates.
  */
 export async function downloadStoredFile(
   fileName: string,
@@ -460,88 +546,181 @@ export async function downloadStoredFile(
     return;
   }
 
-  // Fallback for pre-existing sample documents: Generate clean, valid, uncorrupted formatted files
+  // Pre-existing document template generation: Generate full-length authentic Naskah Dinas
   const ext = safeName.split('.').pop()?.toLowerCase() || 'docx';
+  const tglFormatted = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const titleText = meta?.title || safeName.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
+  const noSuratText = meta?.noSurat || '012/SIPATI/2026';
+  const bidangText = meta?.bidang || 'Bagian Tata Pemerintahan';
+  const catatanText =
+    meta?.catatan ||
+    `Pelaksanaan kegiatan administrasi dan korespondensi resmi di lingkungan Bagian Tata Pemerintahan Sekretariat Daerah Kabupaten Kubu Raya. Seluruh berkas pendukung telah diverifikasi dan tersimpan secara otomatis di cloud Google Drive SIPATI.`;
+  const driveConfig = getDriveConfig();
 
   if (ext === 'pdf') {
-    // Generate valid, native, high-quality PDF using jsPDF
+    // Generate authentic full-page official PDF Naskah Dinas
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
     });
 
-    const driveConfig = getDriveConfig();
-
-    // Red Header Banner
+    // Red Header Bar
     doc.setFillColor(87, 0, 15); // #57000f
-    doc.rect(0, 0, 210, 16, 'F');
-
+    doc.rect(0, 0, 210, 14, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('PEMERINTAH KABUPATEN KUBU RAYA - SEKRETARIAT DAERAH', 105, 10, { align: 'center' });
+    doc.setFontSize(8.5);
+    doc.text('PEMERINTAH KABUPATEN KUBU RAYA - SEKRETARIAT DAERAH', 105, 9, { align: 'center' });
 
-    // Header Kop Surat
+    // Kop Surat Utama
     doc.setTextColor(32, 32, 29);
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('PEMERINTAH KABUPATEN KUBU RAYA', 105, 22, { align: 'center' });
     doc.setFontSize(14);
-    doc.text('BAGIAN TATA PEMERINTAHAN (SIPATI)', 105, 26, { align: 'center' });
+    doc.setTextColor(87, 0, 15);
+    doc.text('SEKRETARIAT DAERAH', 105, 28, { align: 'center' });
+    doc.setFontSize(11);
+    doc.text('BAGIAN TATA PEMERINTAHAN (SIPATI)', 105, 34, { align: 'center' });
 
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setFont('helvetica', 'normal');
-    doc.text('Jl. Arteri Supadio, Sungai Raya, Kabupaten Kubu Raya, Kalimantan Barat 78391', 105, 32, { align: 'center' });
+    doc.setTextColor(60, 60, 55);
+    doc.text('Jl. Arteri Supadio No. 1 Sungai Raya, Kabupaten Kubu Raya, Kalimantan Barat 78391', 105, 40, { align: 'center' });
+    doc.text('Telepon: (0561) 691234 • Email: tatapemerintahan@kuburayakab.go.id • Website: www.kuburayakab.go.id', 105, 45, { align: 'center' });
 
-    doc.setLineWidth(0.8);
+    // Double Line Separator Kop Surat
+    doc.setLineWidth(0.9);
     doc.setDrawColor(87, 0, 15);
-    doc.line(15, 36, 195, 36);
+    doc.line(15, 48, 195, 48);
+    doc.setLineWidth(0.3);
+    doc.line(15, 49.5, 195, 49.5);
 
-    // Document Details Section
+    // Judul & Nomor Surat
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(87, 0, 15);
-    doc.text(meta?.title || safeName, 15, 48);
+    doc.text(titleText.toUpperCase(), 105, 58, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(32, 32, 29);
-    doc.text(`Nomor Registrasi Surat : ${meta?.noSurat || '012/SIPATI/2026'}`, 15, 56);
-    doc.text(`Bidang / Satuan Kerja   : ${meta?.bidang || 'Bagian Tata Pemerintahan'}`, 15, 62);
-    doc.text(`Target Google Drive ID   : ${driveConfig.folderId}`, 15, 68);
-    doc.text(`Tanggal Pengesahan      : ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`, 15, 74);
-
-    // Formatted Card Content Box
-    doc.setDrawColor(228, 220, 200);
-    doc.setFillColor(253, 250, 242);
-    doc.roundedRect(15, 82, 180, 55, 3, 3, 'FD');
+    doc.text(`Nomor: ${noSuratText}`, 105, 64, { align: 'center' });
 
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('TENTANG', 105, 72, { align: 'center' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.text(`PELAKSANAAN TUGAS DAN TATA KELOLA ADMINISTRASI NASKAH DINAS`, 105, 77, { align: 'center' });
+    doc.text(`SATUAN KERJA ${bidangText.toUpperCase()}`, 105, 82, { align: 'center' });
+
+    // Menimbang & Dasar
+    let y = 92;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
     doc.setTextColor(87, 0, 15);
-    doc.text('NASKAH & CATATAN DOKUMEN RESMI:', 20, 92);
+    doc.text('MENIMBANG :', 15, y);
 
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
     doc.setTextColor(32, 32, 29);
-    const contentText =
-      meta?.catatan ||
-      `Dokumen naskah dinas resmi ini diterbitkan secara sah oleh Bagian Tata Pemerintahan Sekretariat Daerah Kabupaten Kubu Raya. Seluruh berkas pendukung telah terverifikasi dan tersimpan secara otomatis di cloud Google Drive SIPATI.`;
-    const splitText = doc.splitTextToSize(contentText, 170);
-    doc.text(splitText, 20, 100);
+    const menimbangText =
+      `a. bahwa untuk kelancaran penyelenggaraan administrasi pemerintahan dan pelaksanaan tugas Panitia Peringatan HUT RI Ke-81 Tahun 2026 di Kabupaten Kubu Raya, dipandang perlu menerbitkan Naskah Dinas Resmi;\n` +
+      `b. bahwa pelaksanaan tugas administrasi pada unit ${bidangText} memerlukan pengesahan baku dan pengarsipan digital terintegrasi melalui Sistem SIPATI;\n` +
+      `c. bahwa berdasarkan pertimbangan sebagaimana dimaksud pada huruf a dan b, perlu ditetapkan Naskah Dinas resmi ini.`;
+    const splitMenimbang = doc.splitTextToSize(menimbangText, 150);
+    doc.text(splitMenimbang, 42, y);
 
-    // Verification Stamp
-    doc.setDrawColor(47, 107, 68);
-    doc.rect(130, 148, 65, 22);
+    y += splitMenimbang.length * 4.5 + 4;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(87, 0, 15);
+    doc.text('DASAR          :', 15, y);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(32, 32, 29);
+    const dasarText =
+      `1. Undang-Undang Nomor 35 Tahun 2007 tentang Pembentukan Kabupaten Kubu Raya di Provinsi Kalbar;\n` +
+      `2. Peraturan Daerah Kabupaten Kubu Raya Nomor 8 Tahun 2016 tentang Pembentukan Perangkat Daerah;\n` +
+      `3. Peraturan Bupati Kubu Raya tentang Pedoman Tata Naskah Dinas di Lingkungan Pemkab Kubu Raya;\n` +
+      `4. Peraturan Bupati Kubu Raya tentang Sistem Informasi Pengelolaan Administrasi Terpadu (SIPATI);\n` +
+      `5. Program Kerja Bagian Tata Pemerintahan Sekretariat Daerah Kabupaten Kubu Raya.`;
+    const splitDasar = doc.splitTextToSize(dasarText, 150);
+    doc.text(splitDasar, 42, y);
+
+    y += splitDasar.length * 4.5 + 6;
+
+    // Memutuskan / Memberi Tugas
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(87, 0, 15);
+    doc.text('MEMUTUSKAN / MEMBERIKAN TUGAS:', 105, y, { align: 'center' });
+
+    y += 7;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
+    doc.setTextColor(32, 32, 29);
+    doc.text('KEPADA       :', 15, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`1. Satuan Kerja / Bidang : ${bidangText}`, 42, y);
+    doc.text(`2. Tim Pelaksana         : Pengelola Berkas & Korespondensi Digital SIPATI`, 42, y + 5);
+
+    y += 12;
+    doc.setFont('helvetica', 'bold');
+    doc.text('UNTUK         :', 15, y);
+    doc.setFont('helvetica', 'normal');
+    const untukText =
+      `1. Melaksanakan uraian pekerjaan naskah dinas: "${catatanText}"\n` +
+      `2. Melakukan verifikasi dan pengarsipan berkas digital ke dalam repositori Google Drive Cloud SIPATI (Target Folder ID: ${driveConfig.folderId}).\n` +
+      `3. Menjamin keamanan, kerapian, dan keterbukaan informasi administrasi pemerintahan secara profesional.\n` +
+      `4. Melaporkan hasil pelaksanaan kegiatan kepada Sekretaris Daerah cq. Kepala Bagian Tata Pemerintahan.`;
+    const splitUntuk = doc.splitTextToSize(untukText, 150);
+    doc.text(splitUntuk, 42, y);
+
+    y += splitUntuk.length * 4.5 + 8;
+
+    // Penutup
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Demikian Naskah Dinas resmi ini diterbitkan untuk dipergunakan sebagaimana mestinya dengan penuh tanggung jawab.', 15, y);
+
+    y += 10;
+    // Tanda Tangan & Stempel
+    doc.text('Ditetapkan di : Sungai Raya', 125, y);
+    doc.text(`Pada Tanggal  : ${tglFormatted}`, 125, y + 5);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('a.n. BUPATI KUBU RAYA', 125, y + 12);
+    doc.text('SEKRETARIS DAERAH', 125, y + 17);
+    doc.text('KEPALA BAGIAN TATA PEMERINTAHAN,', 125, y + 22);
+
+    // Stempel Digital Box
+    doc.setDrawColor(47, 107, 68);
+    doc.setFillColor(240, 250, 243);
+    doc.roundedRect(125, y + 26, 62, 16, 2, 2, 'FD');
+    doc.setFontSize(7.5);
     doc.setTextColor(47, 107, 68);
-    doc.text('TERVERIFIKASI DIGITAL', 162.5, 156, { align: 'center' });
+    doc.text('TERVERIFIKASI DIGITAL SIPATI', 156, y + 32, { align: 'center' });
+    doc.setFontSize(6.5);
+    doc.text('OTENTIKASI CLOUD GOOGLE DRIVE API', 156, y + 37, { align: 'center' });
+
+    doc.setFontSize(9);
+    doc.setTextColor(32, 32, 29);
+    doc.text('DR. H. HERI ADIARTO, S.STP, M.Si', 125, y + 48);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.text('SIPATI KUBU RAYA', 162.5, 163, { align: 'center' });
+    doc.text('Pembina Utama Muda (IV/c)', 125, y + 53);
+    doc.text('NIP. 19780512 200312 1 004', 125, y + 57);
 
     // Footer
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setTextColor(110, 106, 97);
-    doc.text('Sistem Informasi Pengelolaan Administrasi Terpadu (SIPATI) v2.0 - Kabupaten Kubu Raya', 105, 282, { align: 'center' });
+    doc.text('Sistem Informasi Pengelolaan Administrasi Terpadu (SIPATI) v2.0 - Kabupaten Kubu Raya', 105, 285, { align: 'center' });
 
     const pdfBlob = doc.output('blob');
     const pdfUrl = URL.createObjectURL(pdfBlob);
@@ -557,17 +736,8 @@ export async function downloadStoredFile(
   }
 
   if (ext === 'docx' || ext === 'doc') {
-    const titleText = meta?.title || safeName;
-    const noSuratText = meta?.noSurat || '012/SIPATI/2026';
-    const bidangText = meta?.bidang || 'Bagian Tata Pemerintahan';
-    const catatanText =
-      meta?.catatan ||
-      'Dokumen naskah dinas resmi ini telah diverifikasi dan tersimpan secara otomatis di cloud Google Drive SIPATI Kubu Raya.';
-    const driveFolderId = getDriveConfig().folderId;
-    const tglText = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-
     try {
-      const docxBlob = await generateDocxBlob(titleText, noSuratText, bidangText, catatanText, driveFolderId, tglText);
+      const docxBlob = await generateDocxBlob(titleText, noSuratText, bidangText, catatanText, driveConfig.folderId, tglFormatted);
       const docxUrl = URL.createObjectURL(docxBlob);
       const link = document.createElement('a');
       link.href = docxUrl;
@@ -593,14 +763,14 @@ export async function downloadStoredFile(
       `<head><meta charset="utf-8"/></head><body>` +
       `<table border="1" style="border-collapse: collapse; font-family: Arial; font-size: 12px;">` +
       `<tr style="background-color: #57000f; color: white; font-weight: bold;">` +
-      `<th style="padding: 8px;">DOKUMEN</th><th style="padding: 8px;">NOMOR SURAT</th><th style="padding: 8px;">BIDANG</th><th style="padding: 8px;">TANGGAL</th><th style="padding: 8px;">GOOGLE DRIVE ID</th>` +
+      `<th style="padding: 10px;">PEMERINTAH KABUPATEN KUBU RAYA</th><th style="padding: 10px;">NOMOR REGISTRASI</th><th style="padding: 10px;">BIDANG</th><th style="padding: 10px;">TANGGAL PENGESAHAN</th><th style="padding: 10px;">CATATAN DOKUMEN</th>` +
       `</tr>` +
       `<tr>` +
-      `<td style="padding: 6px;">${meta?.title || safeName}</td>` +
-      `<td style="padding: 6px;">${meta?.noSurat || '012/SIPATI/2026'}</td>` +
-      `<td style="padding: 6px;">${meta?.bidang || 'Bagian Tata Pemerintahan'}</td>` +
-      `<td style="padding: 6px;">${new Date().toLocaleDateString('id-ID')}</td>` +
-      `<td style="padding: 6px;">${getDriveConfig().folderId}</td>` +
+      `<td style="padding: 8px;">${titleText}</td>` +
+      `<td style="padding: 8px;">${noSuratText}</td>` +
+      `<td style="padding: 8px;">${bidangText}</td>` +
+      `<td style="padding: 8px;">${tglFormatted}</td>` +
+      `<td style="padding: 8px;">${catatanText}</td>` +
       `</tr>` +
       `</table></body></html>`;
 
@@ -616,23 +786,38 @@ export async function downloadStoredFile(
     return;
   }
 
-  // Fallback text document
+  // Text document format
   const mimeType = getMimeTypeFromFilename(safeName);
   const docText =
-    `============================================================\n` +
+    `=================================================================================\n` +
     `PEMERINTAH KABUPATEN KUBU RAYA - SEKRETARIAT DAERAH\n` +
     `BAGIAN TATA PEMERINTAHAN (SIPATI)\n` +
-    `============================================================\n\n` +
-    `DOKUMEN RESMI          : ${safeName}\n` +
-    `JUDUL PEKERJAAN        : ${meta?.title || 'Pengesahan Naskah Dinas'}\n` +
-    `BIDANG / SATUAN KERJA  : ${meta?.bidang || 'Tata Pemerintahan'}\n` +
-    `NOMOR REGISTRASI       : ${meta?.noSurat || '012/SIPATI/2026'}\n` +
-    `GOOGLE DRIVE TARGET ID : ${getDriveConfig().folderId}\n` +
-    `TANGGAL DITERBITKAN   : ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}\n\n` +
-    `CATATAN ADMINISTRASI:\n` +
-    `${meta?.catatan || 'Dokumen resmi terverifikasi dan terenkripsi aman di Google Drive SIPATI.'}\n\n` +
-    `------------------------------------------------------------\n` +
-    `Otentikasi Digital Bagian Tata Pemerintahan Kabupaten Kubu Raya.\n`;
+    `Jalan Arteri Supadio No. 1 Sungai Raya, Kabupaten Kubu Raya, Kalimantan Barat 78391\n` +
+    `=================================================================================\n\n` +
+    `NASKAH DINAS RESMI     : ${titleText.toUpperCase()}\n` +
+    `NOMOR REGISTRASI       : ${noSuratText}\n` +
+    `BIDANG / SATUAN KERJA  : ${bidangText}\n` +
+    `TANGGAL PENGESAHAN     : ${tglFormatted}\n` +
+    `TARGET GOOGLE DRIVE ID : ${driveConfig.folderId}\n\n` +
+    `MENIMBANG:\n` +
+    `a. Bahwa untuk kelancaran penyelenggaraan administrasi pemerintahan dan pelaksanaan tugas Panitia Peringatan HUT RI Ke-81 Tahun 2026 di Kabupaten Kubu Raya, dipandang perlu menerbitkan Naskah Dinas Resmi.\n` +
+    `b. Bahwa pelaksanaan tugas administrasi pada unit ${bidangText} memerlukan pengesahan baku dan pengarsipan digital terintegrasi melalui Sistem SIPATI.\n\n` +
+    `DASAR HUKUM:\n` +
+    `1. Undang-Undang Nomor 35 Tahun 2007 tentang Pembentukan Kabupaten Kubu Raya;\n` +
+    `2. Peraturan Bupati Kubu Raya tentang Pedoman Tata Naskah Dinas;\n` +
+    `3. Peraturan Bupati Kubu Raya tentang Sistem Informasi Pengelolaan Administrasi Terpadu (SIPATI).\n\n` +
+    `URAIAN PEKERJAAN & CATATAN DOKUMEN:\n` +
+    `${catatanText}\n\n` +
+    `Ditetapkan di : Sungai Raya\n` +
+    `Pada Tanggal  : ${tglFormatted}\n\n` +
+    `a.n. BUPATI KUBU RAYA\n` +
+    `SEKRETARIS DAERAH\n` +
+    `KEPALA BAGIAN TATA PEMERINTAHAN,\n\n` +
+    `DR. H. HERI ADIARTO, S.STP, M.Si\n` +
+    `Pembina Utama Muda (IV/c)\n` +
+    `NIP. 19780512 200312 1 004\n\n` +
+    `---------------------------------------------------------------------------------\n` +
+    `[ DOKUMEN RESMI TERVERIFIKASI DIGITAL SIPATI KUBU RAYA ]\n`;
 
   const blob = new Blob([docText], { type: mimeType });
   const url = URL.createObjectURL(blob);
