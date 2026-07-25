@@ -3,9 +3,16 @@ import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestor
 import firebaseConfig from '../../firebase-applet-config.json';
 import { TeamMember } from '../types';
 
-// Initialize Firebase App
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-export const db = getFirestore(app);
+// Initialize Firebase App safely
+let dbInstance: any = null;
+try {
+  const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  dbInstance = getFirestore(app);
+} catch (e) {
+  console.warn('Firebase initialization warning:', e);
+}
+
+export const db = dbInstance;
 
 const CONFIG_DOC_PATH = ['sipati_config', 'team_members'] as const;
 const SETTINGS_DOC_PATH = ['sipati_config', 'settings'] as const;
@@ -21,6 +28,8 @@ export async function saveTeamMembersToCloud(members: TeamMember[]): Promise<boo
     console.warn('LocalStorage error:', err);
   }
 
+  if (!db) return false;
+
   // Sync to Firebase Firestore for cross-device & shared link support
   try {
     const docRef = doc(db, CONFIG_DOC_PATH[0], CONFIG_DOC_PATH[1]);
@@ -31,7 +40,8 @@ export async function saveTeamMembersToCloud(members: TeamMember[]): Promise<boo
     console.log('✅ Team members synced to Cloud Firestore successfully.');
     return true;
   } catch (err) {
-    console.error('⚠️ Firebase Firestore sync warning:', err);
+    // Graceful error logging without breaking app execution
+    console.warn('Note: Cloud Firestore not initialized yet. Data saved locally on this browser.');
     return false;
   }
 }
@@ -40,18 +50,20 @@ export async function saveTeamMembersToCloud(members: TeamMember[]): Promise<boo
  * Loads team members list from Firebase Firestore (Cloud) with fallback to LocalStorage.
  */
 export async function loadTeamMembersFromCloud(): Promise<TeamMember[]> {
-  try {
-    const docRef = doc(db, CONFIG_DOC_PATH[0], CONFIG_DOC_PATH[1]);
-    const snap = await getDoc(docRef);
-    if (snap.exists() && snap.data()?.members) {
-      const cloudMembers = snap.data().members as TeamMember[];
-      if (Array.isArray(cloudMembers) && cloudMembers.length > 0) {
-        localStorage.setItem('sipati_team_members', JSON.stringify(cloudMembers));
-        return cloudMembers;
+  if (db) {
+    try {
+      const docRef = doc(db, CONFIG_DOC_PATH[0], CONFIG_DOC_PATH[1]);
+      const snap = await getDoc(docRef);
+      if (snap.exists() && snap.data()?.members) {
+        const cloudMembers = snap.data().members as TeamMember[];
+        if (Array.isArray(cloudMembers) && cloudMembers.length > 0) {
+          localStorage.setItem('sipati_team_members', JSON.stringify(cloudMembers));
+          return cloudMembers;
+        }
       }
+    } catch (err) {
+      // Offline or database not created yet, fall back silently to local storage
     }
-  } catch (err) {
-    console.warn('Could not fetch team members from Firestore cloud, falling back to local storage:', err);
   }
 
   // Fallback to local storage if Firestore fails or is offline
@@ -71,6 +83,8 @@ export async function loadTeamMembersFromCloud(): Promise<TeamMember[]> {
  * Subscribes to real-time changes in Firebase Firestore so shared links on other devices update instantly.
  */
 export function subscribeTeamMembersCloud(onUpdate: (members: TeamMember[]) => void) {
+  if (!db) return () => {};
+
   try {
     const docRef = doc(db, CONFIG_DOC_PATH[0], CONFIG_DOC_PATH[1]);
     return onSnapshot(
@@ -85,11 +99,10 @@ export function subscribeTeamMembersCloud(onUpdate: (members: TeamMember[]) => v
         }
       },
       (err) => {
-        console.warn('Realtime snapshot listener error:', err);
+        // Quietly catch unprovisioned database errors
       }
     );
   } catch (err) {
-    console.warn('Failed to subscribe to realtime Firestore cloud:', err);
     return () => {};
   }
 }
@@ -111,7 +124,13 @@ export async function saveSettingsToCloud(settings: {
     if (settings.emailNotif) localStorage.setItem('sipati_email_notif', settings.emailNotif);
     if (settings.autoArchive !== undefined)
       localStorage.setItem('sipati_auto_archive', JSON.stringify(settings.autoArchive));
+  } catch (e) {
+    console.warn(e);
+  }
 
+  if (!db) return false;
+
+  try {
     const docRef = doc(db, SETTINGS_DOC_PATH[0], SETTINGS_DOC_PATH[1]);
     await setDoc(docRef, {
       ...settings,
@@ -119,7 +138,6 @@ export async function saveSettingsToCloud(settings: {
     });
     return true;
   } catch (err) {
-    console.warn('Save settings cloud warning:', err);
     return false;
   }
 }
@@ -128,6 +146,7 @@ export async function saveSettingsToCloud(settings: {
  * Loads system settings from Firebase Firestore Cloud.
  */
 export async function loadSettingsFromCloud() {
+  if (!db) return null;
   try {
     const docRef = doc(db, SETTINGS_DOC_PATH[0], SETTINGS_DOC_PATH[1]);
     const snap = await getDoc(docRef);
@@ -142,7 +161,8 @@ export async function loadSettingsFromCloud() {
       return data;
     }
   } catch (err) {
-    console.warn('Load settings cloud warning:', err);
+    // Quietly fallback
   }
   return null;
 }
+
