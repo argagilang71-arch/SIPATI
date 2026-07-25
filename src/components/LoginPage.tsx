@@ -74,8 +74,32 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     const officerName = savedAdminName || 'Gilang arga';
     const officerNip = savedAdminNip || '19780512 200312 1 002';
 
-    // Default fallback accounts list
+    // Default fallback accounts list matching system defaults
     const defaultAccounts = [
+      {
+        id: 'acc-gilang',
+        nama: 'Gilang Ariesta Arga, S.IP',
+        nip: '199403162016091001',
+        username: 'gilang.admin',
+        password: 'admin12345',
+        role: 'Officer / Administrator',
+      },
+      {
+        id: 'acc-erik',
+        nama: 'Singgih Erik Rudiana, S.STP, M.A.P',
+        nip: '19860920 200904 2 005',
+        username: 'erik.2',
+        password: 'user2',
+        role: 'Analis Kebijakan',
+      },
+      {
+        id: 'acc-faisal',
+        nama: 'Faisal Hadi Jaya, S.E, M.Si',
+        nip: '196812111996031007',
+        username: 'faisal.hadi1',
+        password: 'user123',
+        role: 'Analis Kebijakan',
+      },
       {
         id: 'officer-main',
         nama: officerName,
@@ -91,30 +115,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         username: 'mulyadi',
         password: 'admin123',
         role: 'Officer / Administrator',
-      },
-      {
-        id: 'm-2',
-        nama: 'Siti Rahma, S.IP, M.Si',
-        nip: '19860920 200904 2 005',
-        username: 'siti.rahma',
-        password: 'user123',
-        role: 'Analis Kebijakan',
-      },
-      {
-        id: 'm-3',
-        nama: 'Budi Santoso, S.STP, M.Si',
-        nip: '19820415 200602 1 003',
-        username: 'budi.santoso',
-        password: 'user123',
-        role: 'Analis Kebijakan',
-      },
-      {
-        id: 'm-4',
-        nama: 'Hendra Wijaya, S.IP',
-        nip: '19890510 201201 1 004',
-        username: 'hendra.w',
-        password: 'user123',
-        role: 'Staf Operasional',
       },
     ];
 

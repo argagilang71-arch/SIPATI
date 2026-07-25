@@ -3,11 +3,12 @@ import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestor
 import firebaseConfig from '../../firebase-applet-config.json';
 import { TeamMember } from '../types';
 
-// Initialize Firebase App safely
+// Initialize Firebase App safely with custom databaseId support
 let dbInstance: any = null;
 try {
   const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-  dbInstance = getFirestore(app);
+  const dbId = (firebaseConfig as any).firestoreDatabaseId;
+  dbInstance = dbId && dbId !== '(default)' ? getFirestore(app, dbId) : getFirestore(app);
 } catch (e) {
   console.warn('Firebase initialization warning:', e);
 }
