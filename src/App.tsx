@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ViewMode,
@@ -14,6 +14,20 @@ import {
   INITIAL_TEMPLATES,
   INITIAL_PROPOSALS,
 } from './mockData';
+import {
+  loadTasksFromCloud,
+  saveTasksToCloud,
+  subscribeTasksCloud,
+  loadArchivesFromCloud,
+  saveArchivesToCloud,
+  subscribeArchivesCloud,
+  loadTemplatesFromCloud,
+  saveTemplatesToCloud,
+  subscribeTemplatesCloud,
+  loadProposalsFromCloud,
+  saveProposalsToCloud,
+  subscribeProposalsCloud,
+} from './utils/firebaseSync';
 
 // Components
 import { Sidebar } from './components/Sidebar';
@@ -42,6 +56,34 @@ export default function App() {
   const [archives, setArchives] = useState<ArchiveItem[]>(INITIAL_ARCHIVES);
   const [templates, setTemplates] = useState<TemplateItem[]>(INITIAL_TEMPLATES);
   const [proposals, setProposals] = useState<ProposalItem[]>(INITIAL_PROPOSALS);
+
+  // Initial load from Cloud Firestore & real-time subscriptions across all connected devices
+  useEffect(() => {
+    loadTasksFromCloud().then((cloudTasks) => {
+      if (cloudTasks && cloudTasks.length > 0) setTasks(cloudTasks);
+    });
+    loadArchivesFromCloud().then((cloudArchives) => {
+      if (cloudArchives && cloudArchives.length > 0) setArchives(cloudArchives);
+    });
+    loadTemplatesFromCloud().then((cloudTemplates) => {
+      if (cloudTemplates && cloudTemplates.length > 0) setTemplates(cloudTemplates);
+    });
+    loadProposalsFromCloud().then((cloudProposals) => {
+      if (cloudProposals && cloudProposals.length > 0) setProposals(cloudProposals);
+    });
+
+    const unsubTasks = subscribeTasksCloud((nextTasks) => setTasks(nextTasks));
+    const unsubArchives = subscribeArchivesCloud((nextArchives) => setArchives(nextArchives));
+    const unsubTemplates = subscribeTemplatesCloud((nextTemplates) => setTemplates(nextTemplates));
+    const unsubProposals = subscribeProposalsCloud((nextProposals) => setProposals(nextProposals));
+
+    return () => {
+      unsubTasks();
+      unsubArchives();
+      unsubTemplates();
+      unsubProposals();
+    };
+  }, []);
 
   // Global search & UI states
   const [globalSearch, setGlobalSearch] = useState('');
@@ -124,6 +166,8 @@ export default function App() {
 
     setTasks(nextTasks);
     setArchives(nextArchives);
+    saveTasksToCloud(nextTasks);
+    saveArchivesToCloud(nextArchives);
     setActiveTaskForModal(null);
 
     if (updatedTask.status === 'SELESAI') {
@@ -136,8 +180,12 @@ export default function App() {
   };
 
   const handleDeleteTask = (taskId: string) => {
-    setTasks(tasks.filter((t) => t.id !== taskId));
-    setArchives(archives.filter((a) => a.taskId !== taskId));
+    const nextTasks = tasks.filter((t) => t.id !== taskId);
+    const nextArchives = archives.filter((a) => a.taskId !== taskId);
+    setTasks(nextTasks);
+    setArchives(nextArchives);
+    saveTasksToCloud(nextTasks);
+    saveArchivesToCloud(nextArchives);
     setActiveTaskForModal(null);
     showBanner('Pekerjaan berhasil dihapus.');
   };
@@ -152,6 +200,8 @@ export default function App() {
 
     setTasks(updatedTasks);
     setArchives(nextArchives);
+    saveTasksToCloud(updatedTasks);
+    saveArchivesToCloud(nextArchives);
 
     if (newStatus === 'SELESAI') {
       showBanner(
@@ -191,32 +241,39 @@ export default function App() {
       noSurat: `0${tasks.length + 12}/TPL/VIII/2026`,
       dateCreated: new Date().toISOString().split('T')[0],
     };
-    setTasks([newTask, ...tasks]);
+    const nextTasks = [newTask, ...tasks];
+    setTasks(nextTasks);
+    saveTasksToCloud(nextTasks);
     setCurrentView('pekerjaan');
     showBanner(`Pekerjaan baru "${title}" berhasil dibuat dari template.`);
   };
 
   const handleSaveTemplate = (savedTpl: TemplateItem) => {
-    setTemplates((prev) => {
-      const idx = prev.findIndex((t) => t.id === savedTpl.id);
-      if (idx >= 0) {
-        const nextArr = [...prev];
-        nextArr[idx] = savedTpl;
-        return nextArr;
-      }
-      return [savedTpl, ...prev];
-    });
+    let nextArr: TemplateItem[] = [];
+    const idx = templates.findIndex((t) => t.id === savedTpl.id);
+    if (idx >= 0) {
+      nextArr = [...templates];
+      nextArr[idx] = savedTpl;
+    } else {
+      nextArr = [savedTpl, ...templates];
+    }
+    setTemplates(nextArr);
+    saveTemplatesToCloud(nextArr);
     showBanner(`Template "${savedTpl.title}" berhasil disimpan.`);
   };
 
   const handleDeleteTemplate = (id: string) => {
-    setTemplates((prev) => prev.filter((t) => t.id !== id));
+    const nextArr = templates.filter((t) => t.id !== id);
+    setTemplates(nextArr);
+    saveTemplatesToCloud(nextArr);
     showBanner('Template berhasil dihapus.');
   };
 
   // Proposal submit
   const handleSubmitProposal = (proposal: ProposalItem) => {
-    setProposals([proposal, ...proposals]);
+    const nextProposals = [proposal, ...proposals];
+    setProposals(nextProposals);
+    saveProposalsToCloud(nextProposals);
     setIsProposalModalOpen(false);
     showBanner(`Proposal "${proposal.judul}" telah diajukan.`);
   };
@@ -250,7 +307,9 @@ export default function App() {
       description: 'Dokumen arsip terunggah resmi terverifikasi.',
       fileSize,
     };
-    setArchives([newArch, ...archives]);
+    const nextArchives = [newArch, ...archives];
+    setArchives(nextArchives);
+    saveArchivesToCloud(nextArchives);
     showBanner(`Dokumen "${title}" berhasil diunggah dan disimpan di Arsip Digital.`);
   };
 

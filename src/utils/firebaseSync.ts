@@ -1,7 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { TeamMember } from '../types';
+import { TeamMember, TaskItem, ArchiveItem, TemplateItem, ProposalItem } from '../types';
 
 // Initialize Firebase App safely with custom databaseId support
 let dbInstance: any = null;
@@ -17,6 +17,10 @@ export const db = dbInstance;
 
 const CONFIG_DOC_PATH = ['sipati_config', 'team_members'] as const;
 const SETTINGS_DOC_PATH = ['sipati_config', 'settings'] as const;
+const TASKS_DOC_PATH = ['sipati_config', 'tasks'] as const;
+const ARCHIVES_DOC_PATH = ['sipati_config', 'archives'] as const;
+const TEMPLATES_DOC_PATH = ['sipati_config', 'templates'] as const;
+const PROPOSALS_DOC_PATH = ['sipati_config', 'proposals'] as const;
 
 /**
  * Saves team members list both to Firebase Firestore (Global Cloud Sync) and LocalStorage.
@@ -165,6 +169,290 @@ export async function loadSettingsFromCloud() {
     // Quietly fallback
   }
   return null;
+}
+
+/**
+ * Subscribes to real-time system settings changes.
+ */
+export function subscribeSettingsCloud(onUpdate: (settings: any) => void) {
+  if (!db) return () => {};
+  try {
+    const docRef = doc(db, SETTINGS_DOC_PATH[0], SETTINGS_DOC_PATH[1]);
+    return onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data.namaInstansi) localStorage.setItem('sipati_nama_instansi', data.namaInstansi);
+        if (data.namaAdmin) localStorage.setItem('sipati_nama_admin', data.namaAdmin);
+        if (data.nipAdmin) localStorage.setItem('sipati_nip_admin', data.nipAdmin);
+        if (data.emailNotif) localStorage.setItem('sipati_email_notif', data.emailNotif);
+        if (data.autoArchive !== undefined)
+          localStorage.setItem('sipati_auto_archive', JSON.stringify(data.autoArchive));
+        onUpdate(data);
+      }
+    });
+  } catch (err) {
+    return () => {};
+  }
+}
+
+/**
+ * Saves tasks to Cloud Firestore and LocalStorage
+ */
+export async function saveTasksToCloud(tasks: TaskItem[]): Promise<boolean> {
+  try {
+    localStorage.setItem('sipati_tasks', JSON.stringify(tasks));
+  } catch (e) {
+    console.warn(e);
+  }
+
+  if (!db) return false;
+  try {
+    const docRef = doc(db, TASKS_DOC_PATH[0], TASKS_DOC_PATH[1]);
+    await setDoc(docRef, { tasks, updatedAt: new Date().toISOString() });
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+/**
+ * Loads tasks from Cloud Firestore with fallback to LocalStorage
+ */
+export async function loadTasksFromCloud(): Promise<TaskItem[] | null> {
+  if (db) {
+    try {
+      const docRef = doc(db, TASKS_DOC_PATH[0], TASKS_DOC_PATH[1]);
+      const snap = await getDoc(docRef);
+      if (snap.exists() && snap.data()?.tasks) {
+        const cloudTasks = snap.data().tasks as TaskItem[];
+        if (Array.isArray(cloudTasks)) {
+          localStorage.setItem('sipati_tasks', JSON.stringify(cloudTasks));
+          return cloudTasks;
+        }
+      }
+    } catch (e) {}
+  }
+  try {
+    const saved = localStorage.getItem('sipati_tasks');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return null;
+}
+
+/**
+ * Subscribes to realtime task updates
+ */
+export function subscribeTasksCloud(onUpdate: (tasks: TaskItem[]) => void) {
+  if (!db) return () => {};
+  try {
+    const docRef = doc(db, TASKS_DOC_PATH[0], TASKS_DOC_PATH[1]);
+    return onSnapshot(docRef, (snap) => {
+      if (snap.exists() && snap.data()?.tasks) {
+        const cloudTasks = snap.data().tasks as TaskItem[];
+        if (Array.isArray(cloudTasks)) {
+          localStorage.setItem('sipati_tasks', JSON.stringify(cloudTasks));
+          onUpdate(cloudTasks);
+        }
+      }
+    });
+  } catch (err) {
+    return () => {};
+  }
+}
+
+/**
+ * Saves archives to Cloud Firestore and LocalStorage
+ */
+export async function saveArchivesToCloud(archives: ArchiveItem[]): Promise<boolean> {
+  try {
+    localStorage.setItem('sipati_archives', JSON.stringify(archives));
+  } catch (e) {
+    console.warn(e);
+  }
+
+  if (!db) return false;
+  try {
+    const docRef = doc(db, ARCHIVES_DOC_PATH[0], ARCHIVES_DOC_PATH[1]);
+    await setDoc(docRef, { archives, updatedAt: new Date().toISOString() });
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+/**
+ * Loads archives from Cloud Firestore with fallback to LocalStorage
+ */
+export async function loadArchivesFromCloud(): Promise<ArchiveItem[] | null> {
+  if (db) {
+    try {
+      const docRef = doc(db, ARCHIVES_DOC_PATH[0], ARCHIVES_DOC_PATH[1]);
+      const snap = await getDoc(docRef);
+      if (snap.exists() && snap.data()?.archives) {
+        const cloudArchives = snap.data().archives as ArchiveItem[];
+        if (Array.isArray(cloudArchives)) {
+          localStorage.setItem('sipati_archives', JSON.stringify(cloudArchives));
+          return cloudArchives;
+        }
+      }
+    } catch (e) {}
+  }
+  try {
+    const saved = localStorage.getItem('sipati_archives');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return null;
+}
+
+/**
+ * Subscribes to realtime archive updates
+ */
+export function subscribeArchivesCloud(onUpdate: (archives: ArchiveItem[]) => void) {
+  if (!db) return () => {};
+  try {
+    const docRef = doc(db, ARCHIVES_DOC_PATH[0], ARCHIVES_DOC_PATH[1]);
+    return onSnapshot(docRef, (snap) => {
+      if (snap.exists() && snap.data()?.archives) {
+        const cloudArchives = snap.data().archives as ArchiveItem[];
+        if (Array.isArray(cloudArchives)) {
+          localStorage.setItem('sipati_archives', JSON.stringify(cloudArchives));
+          onUpdate(cloudArchives);
+        }
+      }
+    });
+  } catch (err) {
+    return () => {};
+  }
+}
+
+/**
+ * Saves templates to Cloud Firestore and LocalStorage
+ */
+export async function saveTemplatesToCloud(templates: TemplateItem[]): Promise<boolean> {
+  try {
+    localStorage.setItem('sipati_templates', JSON.stringify(templates));
+  } catch (e) {
+    console.warn(e);
+  }
+
+  if (!db) return false;
+  try {
+    const docRef = doc(db, TEMPLATES_DOC_PATH[0], TEMPLATES_DOC_PATH[1]);
+    await setDoc(docRef, { templates, updatedAt: new Date().toISOString() });
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+/**
+ * Loads templates from Cloud Firestore with fallback to LocalStorage
+ */
+export async function loadTemplatesFromCloud(): Promise<TemplateItem[] | null> {
+  if (db) {
+    try {
+      const docRef = doc(db, TEMPLATES_DOC_PATH[0], TEMPLATES_DOC_PATH[1]);
+      const snap = await getDoc(docRef);
+      if (snap.exists() && snap.data()?.templates) {
+        const cloudTemplates = snap.data().templates as TemplateItem[];
+        if (Array.isArray(cloudTemplates)) {
+          localStorage.setItem('sipati_templates', JSON.stringify(cloudTemplates));
+          return cloudTemplates;
+        }
+      }
+    } catch (e) {}
+  }
+  try {
+    const saved = localStorage.getItem('sipati_templates');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return null;
+}
+
+/**
+ * Subscribes to realtime template updates
+ */
+export function subscribeTemplatesCloud(onUpdate: (templates: TemplateItem[]) => void) {
+  if (!db) return () => {};
+  try {
+    const docRef = doc(db, TEMPLATES_DOC_PATH[0], TEMPLATES_DOC_PATH[1]);
+    return onSnapshot(docRef, (snap) => {
+      if (snap.exists() && snap.data()?.templates) {
+        const cloudTemplates = snap.data().templates as TemplateItem[];
+        if (Array.isArray(cloudTemplates)) {
+          localStorage.setItem('sipati_templates', JSON.stringify(cloudTemplates));
+          onUpdate(cloudTemplates);
+        }
+      }
+    });
+  } catch (err) {
+    return () => {};
+  }
+}
+
+/**
+ * Saves proposals to Cloud Firestore and LocalStorage
+ */
+export async function saveProposalsToCloud(proposals: ProposalItem[]): Promise<boolean> {
+  try {
+    localStorage.setItem('sipati_proposals', JSON.stringify(proposals));
+  } catch (e) {
+    console.warn(e);
+  }
+
+  if (!db) return false;
+  try {
+    const docRef = doc(db, PROPOSALS_DOC_PATH[0], PROPOSALS_DOC_PATH[1]);
+    await setDoc(docRef, { proposals, updatedAt: new Date().toISOString() });
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+/**
+ * Loads proposals from Cloud Firestore with fallback to LocalStorage
+ */
+export async function loadProposalsFromCloud(): Promise<ProposalItem[] | null> {
+  if (db) {
+    try {
+      const docRef = doc(db, PROPOSALS_DOC_PATH[0], PROPOSALS_DOC_PATH[1]);
+      const snap = await getDoc(docRef);
+      if (snap.exists() && snap.data()?.proposals) {
+        const cloudProposals = snap.data().proposals as ProposalItem[];
+        if (Array.isArray(cloudProposals)) {
+          localStorage.setItem('sipati_proposals', JSON.stringify(cloudProposals));
+          return cloudProposals;
+        }
+      }
+    } catch (e) {}
+  }
+  try {
+    const saved = localStorage.getItem('sipati_proposals');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return null;
+}
+
+/**
+ * Subscribes to realtime proposal updates
+ */
+export function subscribeProposalsCloud(onUpdate: (proposals: ProposalItem[]) => void) {
+  if (!db) return () => {};
+  try {
+    const docRef = doc(db, PROPOSALS_DOC_PATH[0], PROPOSALS_DOC_PATH[1]);
+    return onSnapshot(docRef, (snap) => {
+      if (snap.exists() && snap.data()?.proposals) {
+        const cloudProposals = snap.data().proposals as ProposalItem[];
+        if (Array.isArray(cloudProposals)) {
+          localStorage.setItem('sipati_proposals', JSON.stringify(cloudProposals));
+          onUpdate(cloudProposals);
+        }
+      }
+    });
+  } catch (err) {
+    return () => {};
+  }
 }
 
 /**

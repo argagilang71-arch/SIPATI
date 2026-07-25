@@ -233,6 +233,10 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
 
   const handleSaveAll = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isOfficer) {
+      alert('Akses Ditolak!\n\nPengubahan nama penanggung jawab, instansi, dan pengaturan sistem hanya dapat dilakukan oleh Admin / Officer.');
+      return;
+    }
     try {
       // Save local admin settings
       localStorage.setItem('sipati_nama_admin', namaAdmin);
@@ -275,6 +279,15 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
         </p>
       </div>
 
+      {!isOfficer && (
+        <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs font-['Inter',sans-serif] flex items-center gap-3">
+          <span className="material-symbols-outlined text-amber-700 text-xl shrink-0">lock</span>
+          <div>
+            <strong>Akses Pengaturan Dibatasi:</strong> Anda masuk sebagai <strong>{currentUser?.nama || 'Pengguna Staf'} ({currentUser?.role || 'Analis Kebijakan'})</strong>. Pengubahan nama pejabat penanggung jawab, instansi, dan akun pengguna hanya dapat dilakukan oleh Admin / Officer.
+          </div>
+        </div>
+      )}
+
       {saved && (
         <div className="p-3 bg-[#2F6B44]/15 border border-[#2F6B44] text-[#2F6B44] rounded-lg text-xs font-['Inter',sans-serif] font-semibold flex items-center gap-2 animate-fadeIn">
           <span className="material-symbols-outlined text-sm">check_circle</span>
@@ -303,37 +316,46 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-[#6E6A61] mb-1">
-                Nama Instansi / Satuan Kerja
+                Nama Instansi / Satuan Kerja {!isOfficer && <span className="text-amber-700 font-normal">(Terunci)</span>}
               </label>
               <input
                 type="text"
+                disabled={!isOfficer}
                 value={namaInstansi}
                 onChange={(e) => setNamaInstansi(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md font-['Inter',sans-serif] text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230]"
+                className={`w-full px-3.5 py-2.5 border rounded-md font-['Inter',sans-serif] text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230] ${
+                  !isOfficer ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-80' : 'bg-[#ffffff] border-[#E4DCC8]'
+                }`}
               />
             </div>
 
             <div>
               <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-[#6E6A61] mb-1">
-                Nama Pejabat Penanggung Jawab
+                Nama Pejabat Penanggung Jawab {!isOfficer && <span className="text-amber-700 font-normal">(Khusus Admin)</span>}
               </label>
               <input
                 type="text"
+                disabled={!isOfficer}
                 value={namaAdmin}
                 onChange={(e) => setNamaAdmin(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md font-['Inter',sans-serif] text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230]"
+                className={`w-full px-3.5 py-2.5 border rounded-md font-['Inter',sans-serif] text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230] ${
+                  !isOfficer ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-80' : 'bg-[#ffffff] border-[#E4DCC8]'
+                }`}
               />
             </div>
 
             <div>
               <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-[#6E6A61] mb-1">
-                NIP / ID Pejabat Penanggung Jawab
+                NIP / ID Pejabat Penanggung Jawab {!isOfficer && <span className="text-amber-700 font-normal">(Khusus Admin)</span>}
               </label>
               <input
                 type="text"
+                disabled={!isOfficer}
                 value={nipAdmin}
                 onChange={(e) => setNipAdmin(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md font-['JetBrains_Mono',monospace] text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230]"
+                className={`w-full px-3.5 py-2.5 border rounded-md font-['JetBrains_Mono',monospace] text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230] ${
+                  !isOfficer ? 'bg-slate-100 border-slate-300 cursor-not-allowed opacity-80' : 'bg-[#ffffff] border-[#E4DCC8]'
+                }`}
               />
             </div>
           </div>
@@ -713,15 +735,23 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
             </div>
           ) : (
             <div className="text-xs text-[#6E6A61] italic">
-              Klik simpan untuk memperbarui seluruh konfigurasi ke database.
+              {isOfficer
+                ? 'Klik simpan untuk memperbarui seluruh konfigurasi ke database cloud.'
+                : '🔒 Mode Lihat Saja: Pengajuan perubahan hanya dapat dilakukan oleh Officer / Admin.'}
             </div>
           )}
           <button
             type="submit"
-            className="w-full sm:w-auto bg-[#b62230] hover:bg-[#57000f] text-white font-['Inter',sans-serif] font-bold text-[13px] uppercase tracking-wider px-7 py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-95 flex justify-center items-center gap-2 shrink-0"
+            disabled={!isOfficer}
+            className={`w-full sm:w-auto font-['Inter',sans-serif] font-bold text-[13px] uppercase tracking-wider px-7 py-3.5 rounded-lg shadow-md transition-all flex justify-center items-center gap-2 shrink-0 ${
+              isOfficer
+                ? 'bg-[#b62230] hover:bg-[#57000f] text-white hover:shadow-lg cursor-pointer active:scale-95'
+                : 'bg-slate-300 text-slate-500 border border-slate-400 cursor-not-allowed opacity-75'
+            }`}
+            title={isOfficer ? 'Simpan Seluruh Pengaturan' : 'Hanya Officer / Admin yang dapat menyimpan pengaturan'}
           >
-            <span className="material-symbols-outlined text-lg">save</span>
-            <span>Simpan Seluruh Pengaturan</span>
+            <span className="material-symbols-outlined text-lg">{isOfficer ? 'save' : 'lock'}</span>
+            <span>{isOfficer ? 'Simpan Seluruh Pengaturan' : 'Pengaturan Terkunci (Khusus Admin)'}</span>
           </button>
         </div>
       </form>
