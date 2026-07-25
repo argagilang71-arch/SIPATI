@@ -14,6 +14,7 @@ import {
   BorderStyle,
 } from 'docx';
 import { getDriveAccessToken, uploadFileToGoogleDrive } from './googleDriveService';
+import { saveFileToCloud, loadFileFromCloud } from './firebaseSync';
 
 export interface StoredFileInfo {
   fileName: string;
@@ -281,6 +282,7 @@ export function registerUploadedFile(file: File, folderId?: string): StoredFileI
   fileRegistry.set(safeLower, info);
 
   saveFileToIndexedDB(info);
+  saveFileToCloud(file.name, file, mimeType);
 
   // Trigger background auto-upload to Google Drive
   autoSyncToGoogleDrive(file, targetFolder);
@@ -594,6 +596,25 @@ export async function downloadStoredFile(
 
   if (!stored || !(stored.fileBlob instanceof Blob)) {
     stored = await loadFileFromIndexedDBDirect(fileName) || await loadFileFromIndexedDBDirect(safeName);
+  }
+
+  // Cross-device Cloud Firestore binary file retrieval
+  if (!stored || !(stored.fileBlob instanceof Blob)) {
+    const cloudRes = await loadFileFromCloud(fileName) || await loadFileFromCloud(safeName);
+    if (cloudRes && cloudRes.blob) {
+      const info: StoredFileInfo = {
+        fileName: cloudRes.fileName || fileName,
+        fileBlob: cloudRes.blob,
+        mimeType: cloudRes.mimeType,
+        size: cloudRes.blob.size,
+        uploadedAt: new Date().toISOString(),
+        driveSynced: false,
+      };
+      fileRegistry.set(fileName.toLowerCase(), info);
+      fileRegistry.set(safeName.toLowerCase(), info);
+      saveFileToIndexedDB(info);
+      stored = info;
+    }
   }
 
   if (stored && stored.fileBlob instanceof Blob) {

@@ -167,3 +167,125 @@ export async function loadSettingsFromCloud() {
   return null;
 }
 
+/**
+ * Converts a Blob or File to Base64 data string
+ */
+export function fileToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Converts Base64 data string back to a binary File or Blob object
+ */
+export function base64ToBlob(base64: string, mimeType: string = 'application/octet-stream', fileName?: string): Blob {
+  const byteCharacters = atob(base64);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  if (fileName) {
+    return new File([byteArray], fileName, { type: mimeType });
+  }
+  return new Blob([byteArray], { type: mimeType });
+}
+
+/**
+ * Saves a file's exact binary content to Cloud Firestore for cross-device download support
+ */
+export async function saveFileToCloud(
+  fileName: string,
+  blob: Blob,
+  mimeType?: string
+): Promise<boolean> {
+  if (!db) return false;
+  try {
+    const base64 = await fileToBase64(blob);
+    const safeDocId = fileName.toLowerCase().replace(/[\/\\:#?%*"'<>|]/g, '_').substring(0, 100);
+    const docRef = doc(db, 'sipati_cloud_files', safeDocId);
+
+    const CHUNK_SIZE = 450000;
+    const totalLength = base64.length;
+    const chunkCount = Math.ceil(totalLength / CHUNK_SIZE);
+
+    if (chunkCount <= 1) {
+      await setDoc(docRef, {
+        fileName,
+        mimeType: mimeType || blob.type || 'application/octet-stream',
+        size: blob.size,
+        base64Data: base64,
+        chunkCount: 1,
+        uploadedAt: new Date().toISOString(),
+      });
+    } else {
+      const chunks: string[] = [];
+      for (let i = 0; i < chunkCount; i++) {
+        chunks.push(base64.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
+      }
+      await setDoc(docRef, {
+        fileName,
+        mimeType: mimeType || blob.type || 'application/octet-stream',
+        size: blob.size,
+        chunks,
+        chunkCount,
+        uploadedAt: new Date().toISOString(),
+      });
+    }
+    console.log(`✅ Binary file "${fileName}" stored in Cloud Firestore.`);
+    return true;
+  } catch (err) {
+    console.warn(`Could not sync file "${fileName}" to Cloud Firestore:`, err);
+    return false;
+  }
+}
+
+/**
+ * Retrieves a file's exact binary content from Cloud Firestore across any device or account
+ */
+export async function loadFileFromCloud(fileName: string): Promise<{ blob: Blob; fileName: string; mimeType: string } | null> {
+  if (!db) return null;
+  try {
+    const safeDocId = fileName.toLowerCase().replace(/[\/\\:#?%*"'<>|]/g, '_').substring(0, 100);
+    const docRef = doc(db, 'sipati_cloud_files', safeDocId);
+    let snap = await getDoc(docRef);
+
+    if (!snap.exists()) {
+      const cleanName = fileName.replace(/[\/\\:*?"<>|]/g, '_').toLowerCase();
+      const altDocId = cleanName.substring(0, 100);
+      snap = await getDoc(doc(db, 'sipati_cloud_files', altDocId));
+    }
+
+    if (snap.exists()) {
+      const data = snap.data();
+      let fullBase64 = '';
+      if (data.base64Data) {
+        fullBase64 = data.base64Data;
+      } else if (Array.isArray(data.chunks)) {
+        fullBase64 = data.chunks.join('');
+      }
+
+      if (fullBase64) {
+        const mimeType = data.mimeType || 'application/octet-stream';
+        const blob = base64ToBlob(fullBase64, mimeType, data.fileName || fileName);
+        return {
+          blob,
+          fileName: data.fileName || fileName,
+          mimeType,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn(`Could not load file "${fileName}" from Cloud Firestore:`, err);
+  }
+  return null;
+}
+
