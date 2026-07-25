@@ -120,69 +120,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
     const allAccounts = [...teamMembers, ...defaultAccounts];
 
-    // Check if user matches any registered account flexibly
-    let matchedUser = allAccounts.find((m) => {
+    // Find registered user by Username, NIP, or Full Name with strict password verification
+    const matchedUser = allAccounts.find((m) => {
       const uUsername = (m.username || '').toLowerCase().trim().replace(/\s+/g, '');
       const uNip = (m.nip || '').toLowerCase().replace(/\s+/g, '');
       const uName = (m.nama || '').toLowerCase().trim();
       const uPass = (m.password || '').trim();
 
-      const namePartMatches =
-        rawUser.length >= 3 &&
-        (uName.includes(rawUser) || rawUser.includes(uName));
-
       const usernameMatch =
         cleanUser === uUsername ||
         cleanUser === uNip ||
-        namePartMatches ||
-        (cleanUser.includes('admin') && m.role?.includes('Officer')) ||
-        (cleanUser.includes('officer') && m.role?.includes('Officer')) ||
-        (cleanUser.includes('gilang') && m.role?.includes('Officer')) ||
-        (cleanUser.includes('arga') && m.role?.includes('Officer')) ||
-        (cleanUser.includes('mulyadi') && m.role?.includes('Officer')) ||
-        (cleanUser.includes('19780512') && m.role?.includes('Officer'));
+        (rawUser.length >= 3 && uName === rawUser);
 
+      // Verify exact password, or standard default passwords for built-in administrative accounts
+      const isDefaultAccount = defaultAccounts.some((d) => d.id === m.id);
       const passwordMatch =
         cleanPass === uPass ||
-        cleanPass === 'admin123' ||
-        cleanPass === 'admin' ||
-        cleanPass === 'user123' ||
-        cleanPass === '123456' ||
-        cleanPass === 'password';
+        (isDefaultAccount && (cleanPass === 'admin123' || cleanPass === 'admin'));
 
       return usernameMatch && passwordMatch;
     });
-
-    // Universal smart acceptance for custom accounts configured by user
-    if (!matchedUser && cleanUser && cleanPass) {
-      const isOfficerRole =
-        cleanUser.includes('admin') ||
-        cleanUser.includes('officer') ||
-        cleanUser.includes('gilang') ||
-        cleanUser.includes('arga') ||
-        cleanUser.includes('mulyadi') ||
-        cleanUser.includes('1978') ||
-        cleanUser.includes('002') ||
-        cleanUser.includes('pimpinan') ||
-        cleanUser.includes('kabag') ||
-        cleanPass.includes('admin') ||
-        rawUser.includes('gilang') ||
-        rawUser.includes('arga');
-
-      const formattedName = username.trim()
-        .split(/[._\s]+/)
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ');
-
-      matchedUser = {
-        id: `user-${Date.now()}`,
-        nama: isOfficerRole ? officerName : (formattedName || 'Pengguna Terverifikasi'),
-        nip: isOfficerRole ? officerNip : '19850101 201001 1 001',
-        username: username.trim(),
-        password: cleanPass,
-        role: isOfficerRole ? 'Officer / Administrator' : 'Analis Kebijakan / Staf',
-      };
-    }
 
     if (matchedUser) {
       setErrorMsg('');
@@ -193,7 +150,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       }
       onLoginSuccess();
     } else {
-      setErrorMsg('Username / NIP atau Kata Sandi yang Anda masukkan salah. Akses aplikasi dibatasi hanya untuk akun yang terdaftar.');
+      setErrorMsg('Username / NIP atau Kata Sandi yang Anda masukkan salah. Akses dibatasi hanya untuk akun yang terdaftar di Pengaturan.');
     }
   };
 

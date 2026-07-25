@@ -254,6 +254,11 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
   const handleSaveAll = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Save local admin settings
+      localStorage.setItem('sipati_nama_admin', namaAdmin);
+      localStorage.setItem('sipati_nip_admin', nipAdmin);
+      localStorage.setItem('sipati_nama_instansi', namaInstansi);
+
       saveDriveConfig(driveConfig);
       await saveTeamMembersToCloud(anggotaList);
       await saveSettingsToCloud({
@@ -266,7 +271,8 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
 
       setSaved(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      setTimeout(() => setSaved(false), 3500);
+      alert('✅ BERHASIL DISIMPAN!\n\nSeluruh konfigurasi instansi, ID Google Drive, serta Username & Password pengguna telah berhasil disimpan ke Cloud Database & Penyimpanan Lokal.');
+      setTimeout(() => setSaved(false), 5000);
     } catch (err) {
       console.error('Gagal menyimpan pengaturan:', err);
       alert('Terjadi kesalahan saat menyimpan pengaturan.');
@@ -719,10 +725,20 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
         </div>
 
         {/* Submit */}
-        <div className="flex justify-end pt-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+          {saved ? (
+            <div className="p-3 bg-emerald-50 border border-emerald-500 text-emerald-800 rounded-lg text-xs font-['Inter',sans-serif] font-bold flex items-center gap-2 animate-fadeIn w-full sm:w-auto">
+              <span className="material-symbols-outlined text-base text-emerald-600">check_circle</span>
+              <span>Seluruh pengaturan &amp; akun pengguna telah berhasil disimpan!</span>
+            </div>
+          ) : (
+            <div className="text-xs text-[#6E6A61] italic">
+              Klik simpan untuk memperbarui seluruh konfigurasi ke database.
+            </div>
+          )}
           <button
             type="submit"
-            className="bg-[#b62230] hover:bg-[#57000f] text-white font-['Inter',sans-serif] font-bold text-[13px] uppercase tracking-wider px-7 py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-95 flex items-center gap-2"
+            className="w-full sm:w-auto bg-[#b62230] hover:bg-[#57000f] text-white font-['Inter',sans-serif] font-bold text-[13px] uppercase tracking-wider px-7 py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-95 flex justify-center items-center gap-2 shrink-0"
           >
             <span className="material-symbols-outlined text-lg">save</span>
             <span>Simpan Seluruh Pengaturan</span>
