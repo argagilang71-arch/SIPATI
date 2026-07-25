@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { TemplateItem, TaskStatus } from '../types';
-import { downloadStoredFile } from '../utils/fileStorage';
+import { downloadStoredFile, registerUploadedFile } from '../utils/fileStorage';
 
 interface TemplateSuratProps {
   templates: TemplateItem[];
@@ -105,7 +105,9 @@ export const TemplateSurat: React.FC<TemplateSuratProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      setFormData({ ...formData, backupFile: files[0].name });
+      const uploadedFile = files[0];
+      registerUploadedFile(uploadedFile);
+      setFormData({ ...formData, backupFile: uploadedFile.name });
     }
   };
 

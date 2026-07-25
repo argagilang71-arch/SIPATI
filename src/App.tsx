@@ -222,10 +222,22 @@ export default function App() {
   };
 
   // Add Archive item
-  const handleAddArchive = () => {
+  const handleAddArchive = (file?: File) => {
+    let title = 'Nota Kesepakatan Lintas Sektor HUT RI 81';
+    let fileType = 'pdf';
+    let fileSize = '3.1 MB';
+
+    if (file) {
+      title = file.name;
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'pdf';
+      fileType = ext;
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      fileSize = `${sizeMb} MB`;
+    }
+
     const newArch: ArchiveItem = {
       id: `arch-${Date.now()}`,
-      title: 'Nota Kesepakatan Lintas Sektor HUT RI 81',
+      title,
       noSurat: `0${archives.length + 50}/NK/PAN-RI/VIII/2026`,
       bidang: 'Legalisasi Operasional',
       date: new Date().toLocaleDateString('id-ID', {
@@ -234,12 +246,12 @@ export default function App() {
         year: 'numeric',
       }),
       status: 'TERVERIFIKASI',
-      fileType: 'pdf',
-      description: 'Dokumen kesepakatan sinergi pengamanan dan protokol.',
-      fileSize: '3.1 MB',
+      fileType,
+      description: 'Dokumen arsip terunggah resmi terverifikasi.',
+      fileSize,
     };
     setArchives([newArch, ...archives]);
-    showBanner('Dokumen arsip baru berhasil diunggah.');
+    showBanner(`Dokumen "${title}" berhasil diunggah dan disimpan di Arsip Digital.`);
   };
 
   // Downloads
@@ -254,12 +266,15 @@ export default function App() {
 
   const handleDownloadArchiveFile = (item: ArchiveItem) => {
     const cleanTitle = item.title.replace(/[\/\\:*?"<>|]/g, '_');
-    downloadStoredFile(`${cleanTitle}.${item.fileType}`, {
+    const fileNameCandidate = item.title.toLowerCase().endsWith(`.${item.fileType.toLowerCase()}`)
+      ? item.title
+      : `${cleanTitle}.${item.fileType}`;
+    downloadStoredFile(fileNameCandidate, {
       title: item.title,
       noSurat: item.noSurat,
       bidang: item.bidang,
     });
-    showBanner(`Mengunduh berkas salinan: ${cleanTitle}.${item.fileType}`);
+    showBanner(`Mengunduh berkas salinan: ${fileNameCandidate}`);
   };
 
   const handleLogout = () => {

@@ -116,6 +116,47 @@ export async function loadFilesFromIndexedDB() {
 // Load persisted binary files into registry on startup
 loadFilesFromIndexedDB();
 
+export async function loadFileFromIndexedDBDirect(fileName: string): Promise<StoredFileInfo | undefined> {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    
+    const key1 = fileName.toLowerCase();
+    const key2 = sanitizeFileName(fileName).toLowerCase();
+    
+    return new Promise((resolve) => {
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const items = request.result || [];
+        const match = items.find((item: any) => {
+          const fn = (item.fileName || '').toLowerCase();
+          return fn === key1 || fn === key2 || fn.includes(key1) || key1.includes(fn);
+        });
+        
+        if (match && match.fileBlob) {
+          const info: StoredFileInfo = {
+            fileName: match.fileName,
+            fileBlob: match.fileBlob,
+            mimeType: match.mimeType,
+            size: match.size,
+            uploadedAt: match.uploadedAt,
+            driveSynced: match.driveSynced,
+            driveUrl: match.driveUrl,
+          };
+          fileRegistry.set(key1, info);
+          resolve(info);
+        } else {
+          resolve(undefined);
+        }
+      };
+      request.onerror = () => resolve(undefined);
+    });
+  } catch (err) {
+    return undefined;
+  }
+}
+
 /**
  * Gets Google Drive configuration
  */
@@ -234,7 +275,11 @@ export function registerUploadedFile(file: File, folderId?: string): StoredFileI
     driveUrl: driveConfig.sharedFolderUrl || `https://drive.google.com/drive/folders/${targetFolder}`,
   };
 
-  fileRegistry.set(file.name.toLowerCase(), info);
+  const nameLower = file.name.toLowerCase();
+  const safeLower = sanitizeFileName(file.name).toLowerCase();
+  fileRegistry.set(nameLower, info);
+  fileRegistry.set(safeLower, info);
+
   saveFileToIndexedDB(info);
 
   // Trigger background auto-upload to Google Drive
@@ -247,7 +292,21 @@ export function registerUploadedFile(file: File, folderId?: string): StoredFileI
  * Retrieves file info if uploaded
  */
 export function getStoredFileInfo(fileName: string): StoredFileInfo | undefined {
-  return fileRegistry.get(fileName.toLowerCase());
+  if (!fileName) return undefined;
+  const nameLower = fileName.toLowerCase();
+  const safeLower = sanitizeFileName(fileName).toLowerCase();
+
+  if (fileRegistry.has(nameLower)) return fileRegistry.get(nameLower);
+  if (fileRegistry.has(safeLower)) return fileRegistry.get(safeLower);
+
+  // Partial/Fuzzy lookup in fileRegistry
+  for (const [key, value] of fileRegistry.entries()) {
+    if (key === nameLower || key === safeLower || key.includes(nameLower) || nameLower.includes(key)) {
+      return value;
+    }
+  }
+
+  return undefined;
 }
 
 /**
@@ -531,14 +590,18 @@ export async function downloadStoredFile(
   }
 ) {
   const safeName = sanitizeFileName(fileName);
-  const stored = getStoredFileInfo(fileName) || getStoredFileInfo(safeName);
+  let stored = getStoredFileInfo(fileName) || getStoredFileInfo(safeName);
+
+  if (!stored || !(stored.fileBlob instanceof Blob)) {
+    stored = await loadFileFromIndexedDBDirect(fileName) || await loadFileFromIndexedDBDirect(safeName);
+  }
 
   if (stored && stored.fileBlob instanceof Blob) {
     // Real uploaded File/Blob download - 100% exact unchanged binary file object byte-for-byte
     const url = URL.createObjectURL(stored.fileBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = sanitizeFileName(stored.fileName || safeName);
+    link.download = stored.fileName || safeName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

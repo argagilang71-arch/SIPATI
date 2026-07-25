@@ -24,7 +24,7 @@ export interface ArchiveItem {
   bidang: string;
   date: string;
   status: ArchiveStatus;
-  fileType: 'pdf' | 'doc' | 'zip';
+  fileType: string;
   description?: string;
   fileSize?: string;
 }

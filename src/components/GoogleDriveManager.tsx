@@ -9,7 +9,7 @@ import {
   deleteGoogleDriveFile,
   DriveFileItem,
 } from '../utils/googleDriveService';
-import { getDriveConfig, saveDriveConfig, syncAllPendingFilesToDrive } from '../utils/fileStorage';
+import { getDriveConfig, saveDriveConfig, syncAllPendingFilesToDrive, registerUploadedFile } from '../utils/fileStorage';
 
 interface GoogleDriveManagerProps {
   onNotify?: (msg: string) => void;
@@ -107,7 +107,14 @@ export const GoogleDriveManager: React.FC<GoogleDriveManagerProps> = ({
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !accessToken) return;
+    if (!file) return;
+
+    registerUploadedFile(file);
+
+    if (!accessToken) {
+      if (onNotify) onNotify(`Berkas "${file.name}" tersimpan lokal. Hubungkan ke Google Drive untuk otosinkronisasi cloud.`);
+      return;
+    }
 
     setUploading(true);
     try {

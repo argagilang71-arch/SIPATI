@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ArchiveItem, ArchiveStatus } from '../types';
 import { GoogleDriveManager } from './GoogleDriveManager';
+import { registerUploadedFile } from '../utils/fileStorage';
 
 interface ArsipDigitalProps {
   archives: ArchiveItem[];
   onViewArchive: (item: ArchiveItem) => void;
   onDownloadArchive: (item: ArchiveItem) => void;
-  onAddArchive: () => void;
+  onAddArchive: (file?: File) => void;
 }
 
 export const ArsipDigital: React.FC<ArsipDigitalProps> = ({
@@ -18,6 +19,21 @@ export const ArsipDigital: React.FC<ArsipDigitalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBidang, setFilterBidang] = useState('Semua Kategori');
   const [filterPeriode, setFilterPeriode] = useState('Semua Periode');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      registerUploadedFile(file);
+      onAddArchive(file);
+      e.target.value = '';
+    }
+  };
 
   const filteredArchives = archives.filter((item) => {
     const matchesSearch =
@@ -46,8 +62,14 @@ export const ArsipDigital: React.FC<ArsipDigitalProps> = ({
             Pusat penyimpanan dokumen final yang telah diverifikasi dan siap untuk pelaporan akhir.
           </p>
         </div>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          className="hidden"
+        />
         <button
-          onClick={onAddArchive}
+          onClick={handleUploadClick}
           className="bg-[#b62230] hover:bg-[#57000f] text-white font-['Inter',sans-serif] font-semibold text-[11.5px] uppercase tracking-wider px-4 py-2.5 rounded-lg shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 flex-shrink-0"
         >
           <span className="material-symbols-outlined text-sm">upload_file</span>
