@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import garudaEmblemImg from '../assets/images/garuda_pancasila_emblem_1784830236371.jpg';
+import sipatiHeroMokaImg from '../assets/images/sipati_moka_hero_1784883832801.jpg';
+import { SipatiLogo } from './SipatiLogo';
 import {
   loadTeamMembersFromCloud,
   subscribeTeamMembersCloud,
@@ -155,39 +156,36 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   };
 
   return (
-    <div className="bg-[#fdf9f0] min-h-screen flex items-center justify-center relative antialiased p-4 sm:p-[34px] text-[#1c1c16] font-['Inter',sans-serif]">
-      {/* Digital Paper Dot-Grid Texture */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: 'radial-gradient(#E4DCC8 1px, transparent 1px)',
-          backgroundSize: '16px 16px',
-          opacity: 0.6,
-        }}
-      />
+    <div className="min-h-screen relative flex items-center justify-center p-4 sm:p-8 text-white font-['Inter',sans-serif] overflow-hidden">
+      {/* Hero Background Image with Dark Transparent Mask */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src={sipatiHeroMokaImg}
+          alt="SIPATI Workspace Background"
+          className="w-full h-full object-cover scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/75 to-black/90"></div>
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
+      </div>
 
       {/* Back button */}
       <button
         onClick={onBackToLanding}
-        className="absolute top-6 left-6 z-20 flex items-center gap-1.5 text-xs font-['JetBrains_Mono',monospace] text-[#6E6A61] hover:text-[#57000f] transition-colors cursor-pointer"
+        className="absolute top-6 left-6 z-20 flex items-center gap-1.5 text-xs font-['JetBrains_Mono',monospace] text-gray-200 hover:text-white transition-colors cursor-pointer bg-black/40 hover:bg-black/60 px-3.5 py-1.5 rounded-full border border-white/20 backdrop-blur-md"
       >
         <span className="material-symbols-outlined text-base">arrow_back</span>
         Kembali ke Beranda
       </button>
 
-      {/* Main Login Card Canvas */}
-      <div className="relative z-10 w-full max-w-[420px] bg-[#FFFDF8] border border-[#E4DCC8] rounded-xl p-8 sm:p-10 shadow-sm overflow-hidden space-y-6">
+      {/* Main Glassmorphic Login Card */}
+      <div className="relative z-10 w-full max-w-[420px] bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl p-8 sm:p-10 shadow-2xl overflow-hidden space-y-6">
         {/* Brand Identity Header */}
-        <div className="text-center relative z-10">
-          <img
-            src={garudaEmblemImg}
-            alt="Lambang Garuda Pancasila"
-            className="w-16 h-16 mx-auto mb-3 object-contain rounded-full border border-[#E4DCC8] p-1 shadow-2xs bg-white"
-          />
-          <h1 className="font-['Lora',serif] text-[28px] font-bold text-[#57000f] mb-1">
+        <div className="text-center relative z-10 flex flex-col items-center">
+          <SipatiLogo size={64} className="mb-3 drop-shadow-md" />
+          <h1 className="font-['Lora',serif] text-[30px] font-bold text-white mb-1 tracking-tight">
             SIPATI
           </h1>
-          <p className="font-['Inter',sans-serif] text-[13px] text-[#6E6A61] leading-snug">
+          <p className="font-['Inter',sans-serif] text-[13px] text-gray-200 leading-snug font-medium">
             Bagian Tata Pemerintahan
             <br />
             Sekretariat Daerah Kabupaten Kubu Raya
@@ -195,9 +193,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         </div>
 
         {/* Authentication Form */}
-        <form onSubmit={handleSubmit} className="relative z-10 space-y-4 pt-2">
+        <form onSubmit={handleSubmit} className="relative z-10 space-y-4 pt-1">
           {errorMsg && (
-            <div className="p-3 bg-[#ffdad6] text-[#ba1a1a] text-xs rounded-lg border border-[#ba1a1a]/20 font-medium">
+            <div className="p-3 bg-rose-950/80 text-rose-200 text-xs rounded-lg border border-rose-500/40 font-medium">
               {errorMsg}
             </div>
           )}
@@ -206,12 +204,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <div>
             <label
               htmlFor="username"
-              className="block font-['Inter',sans-serif] font-semibold text-[11px] tracking-wider uppercase text-[#1c1c16] mb-1.5"
+              className="block font-['Inter',sans-serif] font-semibold text-[11px] tracking-wider uppercase text-gray-200 mb-1.5"
             >
               Username / NIP Pengguna
             </label>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6E6A61] text-[18px] pointer-events-none">
+              <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300 text-[18px] pointer-events-none">
                 person
               </span>
               <input
@@ -220,7 +218,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Masukkan Username / NIP"
-                className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#E4DCC8] rounded-lg font-['Inter',sans-serif] text-[13px] text-[#20201D] focus:outline-none focus:border-[#b62230] focus:ring-1 focus:ring-[#b62230] transition"
+                className="w-full pl-10 pr-4 py-2.5 bg-white/10 border border-white/25 rounded-xl font-['Inter',sans-serif] text-[13px] text-white placeholder-gray-400 focus:outline-none focus:border-[#00a3e0] focus:ring-1 focus:ring-[#00a3e0] transition"
               />
             </div>
           </div>
@@ -230,7 +228,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             <div className="flex justify-between items-center mb-1.5">
               <label
                 htmlFor="password"
-                className="block font-['Inter',sans-serif] font-semibold text-[11px] tracking-wider uppercase text-[#1c1c16]"
+                className="block font-['Inter',sans-serif] font-semibold text-[11px] tracking-wider uppercase text-gray-200"
               >
                 Kata Sandi (Password)
               </label>
@@ -241,13 +239,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     'Lupa Password? Silakan hubungi Officer Administrator Bagian Tata Pemerintahan.'
                   )
                 }
-                className="font-['Inter',sans-serif] font-semibold text-[11px] text-[#b62230] hover:text-[#881d29] transition cursor-pointer"
+                className="font-['Inter',sans-serif] font-semibold text-[11px] text-[#00a3e0] hover:text-cyan-300 transition cursor-pointer"
               >
                 Lupa Password?
               </button>
             </div>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6E6A61] text-[18px] pointer-events-none">
+              <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300 text-[18px] pointer-events-none">
                 lock
               </span>
               <input
@@ -256,12 +254,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Masukkan Kata Sandi"
-                className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#E4DCC8] rounded-lg font-['Inter',sans-serif] text-[13px] text-[#20201D] focus:outline-none focus:border-[#b62230] focus:ring-1 focus:ring-[#b62230] transition"
+                className="w-full pl-10 pr-10 py-2.5 bg-white/10 border border-white/25 rounded-xl font-['Inter',sans-serif] text-[13px] text-white placeholder-gray-400 focus:outline-none focus:border-[#00a3e0] focus:ring-1 focus:ring-[#00a3e0] transition"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6E6A61] hover:text-[#57000f] cursor-pointer"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-white cursor-pointer"
                 title="Tampilkan / Sembunyikan Password"
               >
                 <span className="material-symbols-outlined text-[18px]">
@@ -275,20 +273,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full bg-[#b62230] text-white font-['Inter',sans-serif] font-bold text-[11.5px] tracking-wider uppercase py-3 px-4 rounded-lg hover:bg-[#881d29] transition flex justify-center items-center gap-2 shadow-xs cursor-pointer active:scale-98"
+              className="w-full bg-[#00a3e0] hover:bg-[#008bc2] text-white font-['Inter',sans-serif] font-bold text-[12px] tracking-wider uppercase py-3 px-4 rounded-xl shadow-lg hover:shadow-cyan-500/25 transition flex justify-center items-center gap-2 cursor-pointer active:scale-98"
             >
-              <span>Masuk Ke Sistem Aplikasi</span>
+              <span>Let's Work — Masuk Aplikasi</span>
               <span className="material-symbols-outlined text-[18px]">
-                login
+                arrow_forward
               </span>
             </button>
           </div>
 
           {/* Security footnote */}
-          <div className="pt-3 border-t border-[#E4DCC8]/60 text-center">
-            <p className="text-[11px] text-[#6E6A61] flex items-center justify-center gap-1">
-              <span className="material-symbols-outlined text-xs text-[#2f6b44]">lock</span>
-              <span>Akses otentikasi terenkripsi &amp; dibatasi secara resmi untuk staf terdaftar.</span>
+          <div className="pt-3 border-t border-white/15 text-center">
+            <p className="text-[11px] text-gray-300 flex items-center justify-center gap-1">
+              <span className="material-symbols-outlined text-xs text-emerald-400">verified_user</span>
+              <span>Sistem terautentikasi resmi untuk Staf Bagian Tata Pemerintahan.</span>
             </p>
           </div>
         </form>
@@ -296,10 +294,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
       {/* Global Footer Context */}
       <div className="absolute bottom-4 left-0 w-full text-center px-4">
-        <p className="font-['JetBrains_Mono',monospace] text-[10.5px] text-[#6E6A61] opacity-75">
-          SISTEM INFORMASI PENGELOLAAN ADMINISTRASI TERPADU INDONESIA
+        <p className="font-['JetBrains_Mono',monospace] text-[10.5px] text-gray-400">
+          BAGIAN TATA PEMERINTAHAN SEKRETARIAT DAERAH KABUPATEN KUBU RAYA
           <br />
-          VER 2.0.4 © 2026 - KABUPATEN KUBU RAYA
+          SIPATI VER 2.0.4 © 2026
         </p>
       </div>
     </div>

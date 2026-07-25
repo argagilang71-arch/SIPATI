@@ -1,7 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { TeamMember, TaskItem, ArchiveItem, TemplateItem, ProposalItem } from '../types';
+import { TeamMember, TaskItem, ArchiveItem, TemplateItem, ProposalItem, BannerConfig } from '../types';
 
 // Initialize Firebase App safely with custom databaseId support
 let dbInstance: any = null;
@@ -17,10 +17,108 @@ export const db = dbInstance;
 
 const CONFIG_DOC_PATH = ['sipati_config', 'team_members'] as const;
 const SETTINGS_DOC_PATH = ['sipati_config', 'settings'] as const;
+const BANNER_DOC_PATH = ['sipati_config', 'banner'] as const;
 const TASKS_DOC_PATH = ['sipati_config', 'tasks'] as const;
 const ARCHIVES_DOC_PATH = ['sipati_config', 'archives'] as const;
 const TEMPLATES_DOC_PATH = ['sipati_config', 'templates'] as const;
 const PROPOSALS_DOC_PATH = ['sipati_config', 'proposals'] as const;
+
+export const DEFAULT_BANNER_CONFIG: BannerConfig = {
+  enabled: true,
+  title: '📢 PENGUMUMAN RESMI & INFORMASI PANITIA',
+  message: 'Selamat datang di Sistem Informasi Panitia (SIPATI). Harap seluruh Penanggung Jawab Bagian melengkapi draft dokumen & verifikasi berkas naskah dinas sebelum tenggat pelaporan.',
+  type: 'info',
+  linkUrl: '',
+  linkText: 'Buka Panduan Penggunaan',
+  imageUrl: '',
+  dismissible: true,
+  updatedAt: new Date().toISOString(),
+  updatedBy: 'Admin SIPATI',
+};
+
+/**
+ * Saves Dashboard Banner configuration to Cloud Firestore and LocalStorage.
+ */
+export async function saveBannerConfigToCloud(banner: BannerConfig): Promise<boolean> {
+  try {
+    localStorage.setItem('sipati_dashboard_banner', JSON.stringify(banner));
+    window.dispatchEvent(new Event('sipati_banner_updated'));
+  } catch (e) {
+    console.warn('LocalStorage error saving banner:', e);
+  }
+
+  if (!db) return false;
+
+  try {
+    const docRef = doc(db, BANNER_DOC_PATH[0], BANNER_DOC_PATH[1]);
+    await setDoc(docRef, {
+      ...banner,
+      updatedAt: new Date().toISOString(),
+    });
+    console.log('✅ Dashboard Banner synced to Cloud Firestore.');
+    return true;
+  } catch (err) {
+    console.warn('Note: Could not sync banner to Cloud Firestore:', err);
+    return false;
+  }
+}
+
+/**
+ * Loads Dashboard Banner configuration from Cloud Firestore with fallback to LocalStorage.
+ */
+export async function loadBannerConfigFromCloud(): Promise<BannerConfig> {
+  if (db) {
+    try {
+      const docRef = doc(db, BANNER_DOC_PATH[0], BANNER_DOC_PATH[1]);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const cloudBanner = snap.data() as BannerConfig;
+        if (cloudBanner && typeof cloudBanner.enabled === 'boolean') {
+          localStorage.setItem('sipati_dashboard_banner', JSON.stringify(cloudBanner));
+          return cloudBanner;
+        }
+      }
+    } catch (err) {
+      // Offline fallback
+    }
+  }
+
+  try {
+    const saved = localStorage.getItem('sipati_dashboard_banner');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error('Error parsing local banner config:', e);
+  }
+
+  return DEFAULT_BANNER_CONFIG;
+}
+
+/**
+ * Subscribes to real-time Dashboard Banner changes.
+ */
+export function subscribeBannerConfigCloud(onUpdate: (banner: BannerConfig) => void) {
+  if (!db) return () => {};
+  try {
+    const docRef = doc(db, BANNER_DOC_PATH[0], BANNER_DOC_PATH[1]);
+    return onSnapshot(
+      docRef,
+      (snap) => {
+        if (snap.exists()) {
+          const cloudBanner = snap.data() as BannerConfig;
+          if (cloudBanner && typeof cloudBanner.enabled === 'boolean') {
+            localStorage.setItem('sipati_dashboard_banner', JSON.stringify(cloudBanner));
+            onUpdate(cloudBanner);
+          }
+        }
+      },
+      (err) => {}
+    );
+  } catch (err) {
+    return () => {};
+  }
+}
 
 /**
  * Saves team members list both to Firebase Firestore (Global Cloud Sync) and LocalStorage.
@@ -121,6 +219,7 @@ export async function saveSettingsToCloud(settings: {
   nipAdmin?: string;
   emailNotif?: string;
   autoArchive?: boolean;
+  logoUrl?: string;
 }): Promise<boolean> {
   try {
     if (settings.namaInstansi) localStorage.setItem('sipati_nama_instansi', settings.namaInstansi);
@@ -129,6 +228,14 @@ export async function saveSettingsToCloud(settings: {
     if (settings.emailNotif) localStorage.setItem('sipati_email_notif', settings.emailNotif);
     if (settings.autoArchive !== undefined)
       localStorage.setItem('sipati_auto_archive', JSON.stringify(settings.autoArchive));
+    if (settings.logoUrl !== undefined) {
+      if (settings.logoUrl) {
+        localStorage.setItem('sipati_logo_url', settings.logoUrl);
+      } else {
+        localStorage.removeItem('sipati_logo_url');
+      }
+      window.dispatchEvent(new Event('sipati_logo_updated'));
+    }
   } catch (e) {
     console.warn(e);
   }
@@ -137,10 +244,14 @@ export async function saveSettingsToCloud(settings: {
 
   try {
     const docRef = doc(db, SETTINGS_DOC_PATH[0], SETTINGS_DOC_PATH[1]);
-    await setDoc(docRef, {
-      ...settings,
-      updatedAt: new Date().toISOString(),
-    });
+    await setDoc(
+      docRef,
+      {
+        ...settings,
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
     return true;
   } catch (err) {
     return false;
@@ -163,6 +274,11 @@ export async function loadSettingsFromCloud() {
       if (data.emailNotif) localStorage.setItem('sipati_email_notif', data.emailNotif);
       if (data.autoArchive !== undefined)
         localStorage.setItem('sipati_auto_archive', JSON.stringify(data.autoArchive));
+      if (data.logoUrl !== undefined) {
+        if (data.logoUrl) localStorage.setItem('sipati_logo_url', data.logoUrl);
+        else localStorage.removeItem('sipati_logo_url');
+        window.dispatchEvent(new Event('sipati_logo_updated'));
+      }
       return data;
     }
   } catch (err) {
@@ -187,6 +303,11 @@ export function subscribeSettingsCloud(onUpdate: (settings: any) => void) {
         if (data.emailNotif) localStorage.setItem('sipati_email_notif', data.emailNotif);
         if (data.autoArchive !== undefined)
           localStorage.setItem('sipati_auto_archive', JSON.stringify(data.autoArchive));
+        if (data.logoUrl !== undefined) {
+          if (data.logoUrl) localStorage.setItem('sipati_logo_url', data.logoUrl);
+          else localStorage.removeItem('sipati_logo_url');
+          window.dispatchEvent(new Event('sipati_logo_updated'));
+        }
         onUpdate(data);
       }
     });

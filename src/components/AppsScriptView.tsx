@@ -478,58 +478,58 @@ function applyDigitalStamp() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
+    <div className="space-y-6 animate-fadeIn pb-12 text-white font-['Inter',sans-serif]">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#57000f] via-[#7a1220] to-[#b62230] text-white p-6 md:p-8 rounded-2xl shadow-md border border-[#E4DCC8] relative overflow-hidden">
+      <div className="bg-gradient-to-r from-[#003b5c]/90 via-[#005f8e]/90 to-[#003b5c]/90 text-white p-6 md:p-8 rounded-2xl shadow-2xl border border-white/20 relative overflow-hidden backdrop-blur-xl">
         <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-semibold text-[#FFFDF8] border border-white/20 mb-3">
-            <span className="material-symbols-outlined text-sm text-[#ff595e]">cloud_sync</span>
-            Deployment Center Google Apps Script
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 backdrop-blur-md rounded-full text-xs font-semibold text-cyan-300 border border-cyan-400/30 mb-3">
+            <span className="material-symbols-outlined text-sm text-cyan-300">cloud_sync</span>
+            Deployment Center Google Apps Script (Khusus Admin)
           </div>
-          <h2 className="font-['Lora',serif] text-2xl md:text-3xl font-bold mb-2">
+          <h2 className="font-['Lora',serif] text-2xl md:text-3xl font-bold mb-2 text-white">
             Kode Integrasi Google Apps Script (GAS)
           </h2>
-          <p className="text-sm text-rose-100 font-['Inter',sans-serif] leading-relaxed">
-            Gunakan tiga berkas berikut (<code className="bg-black/30 px-1.5 py-0.5 rounded text-amber-200">code.js</code>, <code className="bg-black/30 px-1.5 py-0.5 rounded text-amber-200">index.html</code>, dan <code className="bg-black/30 px-1.5 py-0.5 rounded text-amber-200">appscriptcode.gs</code>) untuk mendeploy sistem SIPATI secara langsung ke Google Workspace, Google Sheets, dan Google Drive.
+          <p className="text-sm text-gray-200 font-['Inter',sans-serif] leading-relaxed">
+            Gunakan tiga berkas berikut (<code className="bg-black/40 px-1.5 py-0.5 rounded text-cyan-300">code.js</code>, <code className="bg-black/40 px-1.5 py-0.5 rounded text-cyan-300">index.html</code>, dan <code className="bg-black/40 px-1.5 py-0.5 rounded text-cyan-300">appscriptcode.gs</code>) untuk mendeploy sistem SIPATI secara langsung ke Google Workspace, Google Sheets, dan Google Drive.
           </p>
         </div>
       </div>
 
       {/* Deployment Steps Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-['Inter',sans-serif]">
-        <div className="bg-[#FFFDF8] p-4 rounded-xl border border-[#E4DCC8] shadow-sm flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#57000f] text-white flex items-center justify-center font-bold text-xs shrink-0">1</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-black/45 backdrop-blur-xl p-4 rounded-2xl border border-white/20 shadow-xl flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-[#00a3e0] text-white flex items-center justify-center font-bold text-xs shrink-0">1</div>
           <div>
-            <h4 className="font-bold text-[#57000f] text-sm mb-1">Buka Google Sheets</h4>
-            <p className="text-xs text-slate-600">Buka Spreadsheet Panitia &rarr; klik menu <strong>Ekstensi</strong> &rarr; <strong>Apps Script</strong>.</p>
+            <h4 className="font-bold text-white text-sm mb-1">Buka Google Sheets</h4>
+            <p className="text-xs text-gray-300">Buka Spreadsheet Panitia &rarr; klik menu <strong className="text-cyan-300">Ekstensi</strong> &rarr; <strong className="text-cyan-300">Apps Script</strong>.</p>
           </div>
         </div>
-        <div className="bg-[#FFFDF8] p-4 rounded-xl border border-[#E4DCC8] shadow-sm flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#b62230] text-white flex items-center justify-center font-bold text-xs shrink-0">2</div>
+        <div className="bg-black/45 backdrop-blur-xl p-4 rounded-2xl border border-white/20 shadow-xl flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-[#00a3e0] text-white flex items-center justify-center font-bold text-xs shrink-0">2</div>
           <div>
-            <h4 className="font-bold text-[#57000f] text-sm mb-1">Tempel Berkas</h4>
-            <p className="text-xs text-slate-600">Buat file <code className="text-[#b62230]">Code.gs</code> (<code className="text-[#b62230]">code.js</code>) dan <code className="text-[#b62230]">index.html</code> pada Google Apps Script Editor.</p>
+            <h4 className="font-bold text-white text-sm mb-1">Tempel Berkas</h4>
+            <p className="text-xs text-gray-300">Buat file <code className="text-cyan-300">Code.gs</code> (<code className="text-cyan-300">code.js</code>) dan <code className="text-cyan-300">index.html</code> pada Google Apps Script Editor.</p>
           </div>
         </div>
-        <div className="bg-[#FFFDF8] p-4 rounded-xl border border-[#E4DCC8] shadow-sm flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-xs shrink-0">3</div>
+        <div className="bg-black/45 backdrop-blur-xl p-4 rounded-2xl border border-white/20 shadow-xl flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">3</div>
           <div>
-            <h4 className="font-bold text-[#57000f] text-sm mb-1">Deploy Sebagai WebApp</h4>
-            <p className="text-xs text-slate-600">Klik <strong>Deploy</strong> &rarr; <strong>New Deployment</strong> &rarr; Pilih <strong>Web App</strong> (Execute as: <i>Me</i>, Access: <i>Anyone</i>).</p>
+            <h4 className="font-bold text-white text-sm mb-1">Deploy Sebagai WebApp</h4>
+            <p className="text-xs text-gray-300">Klik <strong className="text-cyan-300">Deploy</strong> &rarr; <strong className="text-cyan-300">New Deployment</strong> &rarr; Pilih <strong className="text-cyan-300">Web App</strong> (Execute as: <i>Me</i>, Access: <i>Anyone</i>).</p>
           </div>
         </div>
       </div>
 
       {/* Code Selector Tabs */}
-      <div className="bg-[#FFFDF8] rounded-2xl border border-[#E4DCC8] shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between border-b border-[#E4DCC8] bg-[#f7f3e8] p-3 gap-2">
+      <div className="bg-black/45 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between border-b border-white/15 bg-white/10 p-3 gap-2">
           <div className="flex items-center gap-1">
             <button
               onClick={() => setActiveTab('codejs')}
-              className={`px-4 py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-4 py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
                 activeTab === 'codejs'
-                  ? 'bg-[#57000f] text-white shadow-sm'
-                  : 'text-slate-700 hover:bg-[#E4DCC8]/50'
+                  ? 'bg-[#00a3e0] text-white shadow-md'
+                  : 'text-gray-300 hover:bg-white/10'
               }`}
             >
               <span className="material-symbols-outlined text-sm">javascript</span>
@@ -537,10 +537,10 @@ function applyDigitalStamp() {
             </button>
             <button
               onClick={() => setActiveTab('indexhtml')}
-              className={`px-4 py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-4 py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
                 activeTab === 'indexhtml'
-                  ? 'bg-[#57000f] text-white shadow-sm'
-                  : 'text-slate-700 hover:bg-[#E4DCC8]/50'
+                  ? 'bg-[#00a3e0] text-white shadow-md'
+                  : 'text-gray-300 hover:bg-white/10'
               }`}
             >
               <span className="material-symbols-outlined text-sm">html</span>
@@ -548,10 +548,10 @@ function applyDigitalStamp() {
             </button>
             <button
               onClick={() => setActiveTab('appscriptcode')}
-              className={`px-4 py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-4 py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
                 activeTab === 'appscriptcode'
-                  ? 'bg-[#57000f] text-white shadow-sm'
-                  : 'text-slate-700 hover:bg-[#E4DCC8]/50'
+                  ? 'bg-[#00a3e0] text-white shadow-md'
+                  : 'text-gray-300 hover:bg-white/10'
               }`}
             >
               <span className="material-symbols-outlined text-sm">table_chart</span>
@@ -561,7 +561,7 @@ function applyDigitalStamp() {
 
           <button
             onClick={() => handleCopy(getActiveContent(), activeTab)}
-            className="px-4 py-2 bg-[#b62230] hover:bg-[#8e1925] text-white rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-sm active:scale-95"
+            className="px-4 py-2 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-lg hover:shadow-cyan-500/25 active:scale-95"
           >
             <span className="material-symbols-outlined text-sm">
               {copiedTab === activeTab ? 'check_circle' : 'content_copy'}
@@ -571,7 +571,7 @@ function applyDigitalStamp() {
         </div>
 
         {/* Code Content Container */}
-        <div className="p-4 bg-[#1e1e1e] text-[#d4d4d4] overflow-x-auto max-h-[600px] font-['JetBrains_Mono',monospace] text-xs leading-relaxed">
+        <div className="p-4 bg-black/60 text-[#d4d4d4] overflow-x-auto max-h-[600px] font-['JetBrains_Mono',monospace] text-xs leading-relaxed">
           <pre>
             <code>{getActiveContent()}</code>
           </pre>

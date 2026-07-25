@@ -7,6 +7,7 @@ import {
   TemplateItem,
   ProposalItem,
   TaskStatus,
+  BannerConfig,
 } from './types';
 import {
   INITIAL_TASKS,
@@ -27,6 +28,10 @@ import {
   loadProposalsFromCloud,
   saveProposalsToCloud,
   subscribeProposalsCloud,
+  loadBannerConfigFromCloud,
+  saveBannerConfigToCloud,
+  subscribeBannerConfigCloud,
+  DEFAULT_BANNER_CONFIG,
 } from './utils/firebaseSync';
 
 // Components
@@ -46,6 +51,7 @@ import { HelpModal } from './components/HelpModal';
 import { PengaturanView } from './components/PengaturanView';
 import { AppsScriptView } from './components/AppsScriptView';
 import { downloadStoredFile } from './utils/fileStorage';
+import sipatiHeroMokaImg from './assets/images/sipati_moka_hero_1784883832801.jpg';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('landing');
@@ -56,6 +62,7 @@ export default function App() {
   const [archives, setArchives] = useState<ArchiveItem[]>(INITIAL_ARCHIVES);
   const [templates, setTemplates] = useState<TemplateItem[]>(INITIAL_TEMPLATES);
   const [proposals, setProposals] = useState<ProposalItem[]>(INITIAL_PROPOSALS);
+  const [bannerConfig, setBannerConfig] = useState<BannerConfig>(DEFAULT_BANNER_CONFIG);
 
   // Initial load from Cloud Firestore & real-time subscriptions across all connected devices
   useEffect(() => {
@@ -71,19 +78,39 @@ export default function App() {
     loadProposalsFromCloud().then((cloudProposals) => {
       if (cloudProposals && cloudProposals.length > 0) setProposals(cloudProposals);
     });
+    loadBannerConfigFromCloud().then((cloudBanner) => {
+      if (cloudBanner) setBannerConfig(cloudBanner);
+    });
 
     const unsubTasks = subscribeTasksCloud((nextTasks) => setTasks(nextTasks));
     const unsubArchives = subscribeArchivesCloud((nextArchives) => setArchives(nextArchives));
     const unsubTemplates = subscribeTemplatesCloud((nextTemplates) => setTemplates(nextTemplates));
     const unsubProposals = subscribeProposalsCloud((nextProposals) => setProposals(nextProposals));
+    const unsubBanner = subscribeBannerConfigCloud((nextBanner) => setBannerConfig(nextBanner));
+
+    // Also listen to local banner update events
+    const handleLocalBannerUpdate = () => {
+      loadBannerConfigFromCloud().then((b) => {
+        if (b) setBannerConfig(b);
+      });
+    };
+    window.addEventListener('sipati_banner_updated', handleLocalBannerUpdate);
 
     return () => {
       unsubTasks();
       unsubArchives();
       unsubTemplates();
       unsubProposals();
+      unsubBanner();
+      window.removeEventListener('sipati_banner_updated', handleLocalBannerUpdate);
     };
   }, []);
+
+  const handleSaveBannerConfig = async (newBanner: BannerConfig) => {
+    setBannerConfig(newBanner);
+    await saveBannerConfigToCloud(newBanner);
+    showBanner('Pengaturan Banner Dashboard Admin berhasil disimpan & diterbitkan!');
+  };
 
   // Global search & UI states
   const [globalSearch, setGlobalSearch] = useState('');
@@ -392,7 +419,18 @@ export default function App() {
   }
 
   return (
-    <div className="bg-[#fdf9f0] min-h-screen text-[#1c1c16] font-['Inter',sans-serif] flex digital-paper-texture">
+    <div className="relative min-h-screen text-slate-100 font-['Inter',sans-serif] flex overflow-x-hidden antialiased">
+      {/* Hero Background Image with Dark Transparent Mask */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <img
+          src={sipatiHeroMokaImg}
+          alt="SIPATI Workspace Background"
+          className="w-full h-full object-cover scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/92 via-black/85 to-black/90"></div>
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"></div>
+      </div>
+
       {/* Persistent Left Sidebar */}
       <Sidebar
         currentView={currentView}
@@ -407,7 +445,7 @@ export default function App() {
       />
 
       {/* Main App Content Area */}
-      <div className="flex-1 md:ml-[250px] flex flex-col min-h-screen">
+      <div className="flex-1 md:ml-[250px] flex flex-col min-h-screen relative z-10">
         {/* Top App Bar */}
         <Header
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
@@ -419,8 +457,8 @@ export default function App() {
 
         {/* Floating Banner Notification */}
         {notificationBanner && (
-          <div className="fixed top-20 right-6 z-50 bg-[#57000f] text-white px-5 py-3 rounded-lg shadow-xl border border-[#ffdad9] text-xs font-['Inter',sans-serif] font-semibold flex items-center gap-2.5 animate-bounce">
-            <span className="material-symbols-outlined text-sm text-[#ff8386]">
+          <div className="fixed top-20 right-6 z-50 bg-[#00a3e0] text-white px-5 py-3 rounded-xl shadow-2xl border border-cyan-300/40 text-xs font-['Inter',sans-serif] font-semibold flex items-center gap-2.5 animate-bounce backdrop-blur-md">
+            <span className="material-symbols-outlined text-sm text-cyan-200">
               check_circle
             </span>
             <span>{notificationBanner}</span>
@@ -459,6 +497,8 @@ export default function App() {
                 <RingkasanDashboard
                   tasks={tasks}
                   archives={archives}
+                  banner={bannerConfig}
+                  onSaveBannerConfig={handleSaveBannerConfig}
                   onOpenSendEmailModal={() => setIsSendEmailModalOpen(true)}
                   onDownloadPdf={handleDownloadReportPdf}
                   onViewAllVerifiedList={() => setCurrentView('arsip')}
@@ -477,6 +517,8 @@ export default function App() {
               {currentView === 'pengaturan' && (
                 <PengaturanView
                   requireLogin={requireLogin}
+                  banner={bannerConfig}
+                  onSaveBannerConfig={handleSaveBannerConfig}
                   onToggleRequireLogin={(val) => {
                     setRequireLogin(val);
                     showBanner(
@@ -489,7 +531,41 @@ export default function App() {
                   onLogout={handleLogout}
                 />
               )}
-              {currentView === 'appscript' && <AppsScriptView />}
+              {currentView === 'appscript' && (
+                (() => {
+                  let isUserAdmin = true;
+                  try {
+                    const uStr = localStorage.getItem('sipati_current_user');
+                    if (uStr) {
+                      const u = JSON.parse(uStr);
+                      const role = (u.role || '').toLowerCase();
+                      isUserAdmin = role.includes('officer') || role.includes('admin') || role.includes('administrator');
+                    }
+                  } catch {
+                    isUserAdmin = true;
+                  }
+
+                  if (!isUserAdmin) {
+                    return (
+                      <div className="p-8 bg-black/45 backdrop-blur-xl border border-rose-500/40 rounded-2xl text-center space-y-4 max-w-lg mx-auto text-white">
+                        <span className="material-symbols-outlined text-rose-400 text-5xl">lock</span>
+                        <h3 className="font-['Lora',serif] text-xl font-bold text-white">Akses Dibatasi Khusus Admin</h3>
+                        <p className="text-sm text-gray-300">
+                          Halaman Google Apps Script &amp; Automation Engine hanya dapat diakses oleh akun dengan peran Officer / Administrator.
+                        </p>
+                        <button
+                          onClick={() => setCurrentView('pekerjaan')}
+                          className="px-5 py-2.5 bg-[#00a3e0] text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg hover:shadow-cyan-500/25 cursor-pointer"
+                        >
+                          Kembali ke Daftar Pekerjaan
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return <AppsScriptView />;
+                })()
+              )}
             </motion.div>
           </AnimatePresence>
         </main>

@@ -1,11 +1,257 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TaskItem, TaskStatus } from '../types';
 import {
   registerUploadedFile,
   downloadStoredFile,
   getStoredFileInfo,
+  getStoredFileBlob,
   openInGoogleDrive,
 } from '../utils/fileStorage';
+import { OfficialDocumentViewer } from './OfficialDocumentViewer';
+
+interface TaskDetailModalProps {
+  task: TaskItem;
+  onClose: () => void;
+  onSave: (updatedTask: TaskItem) => void;
+  onDelete?: (taskId: string) => void;
+}
+
+// Sub-component for rendering uploaded receipt photo thumbnails directly in the UI
+const ReceiptPhotoItem: React.FC<{
+  fileName: string;
+  onPreview: () => void;
+  onDownload: () => void;
+  onRemove: () => void;
+}> = ({ fileName, onPreview, onDownload, onRemove }) => {
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
+  const [isImage, setIsImage] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    let url: string | null = null;
+
+    getStoredFileBlob(fileName).then((res) => {
+      if (!active) return;
+      if (res && res.blob) {
+        if (res.mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileName)) {
+          url = URL.createObjectURL(res.blob);
+          setImgUrl(url);
+          setIsImage(true);
+        }
+      } else if (/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileName)) {
+        setIsImage(true);
+      }
+    });
+
+    return () => {
+      active = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [fileName]);
+
+  return (
+    <div className="p-2.5 bg-white/10 rounded-xl border border-white/15 shadow-md flex flex-col justify-between space-y-2 text-white">
+      {imgUrl ? (
+        <div
+          onClick={onPreview}
+          className="relative h-28 w-full bg-black/60 rounded-lg overflow-hidden group cursor-pointer border border-white/20"
+          title="Klik untuk melihat foto bukti tanda terima ukuran penuh"
+        >
+          <img
+            src={imgUrl}
+            alt={fileName}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+          />
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 text-white text-xs font-bold">
+            <span className="material-symbols-outlined text-base">visibility</span>
+            <span>Pratinjau</span>
+          </div>
+        </div>
+      ) : isImage ? (
+        <div
+          onClick={onPreview}
+          className="h-24 w-full bg-black/30 rounded-lg border border-dashed border-white/30 flex flex-col items-center justify-center cursor-pointer text-cyan-200 hover:bg-white/10 transition"
+        >
+          <span className="material-symbols-outlined text-2xl text-cyan-400">photo_camera</span>
+          <span className="text-[10.5px] font-semibold mt-1">Foto Tanda Terima</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 truncate pr-2 py-1">
+          <span className="material-symbols-outlined text-base text-cyan-400">description</span>
+          <span className="font-semibold text-white truncate text-xs">{fileName}</span>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-1 pt-2 border-t border-white/10">
+        <span className="text-[10.5px] font-semibold text-gray-200 truncate max-w-[130px]" title={fileName}>
+          {fileName}
+        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={onPreview}
+            className="px-2 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-[10px] font-bold flex items-center gap-0.5 cursor-pointer shadow-sm"
+            title="Lihat langsung di aplikasi"
+          >
+            <span className="material-symbols-outlined text-[11px]">visibility</span>
+            <span>Lihat</span>
+          </button>
+          <button
+            type="button"
+            onClick={onDownload}
+            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold flex items-center gap-0.5 cursor-pointer shadow-sm"
+            title="Unduh berkas"
+          >
+            <span className="material-symbols-outlined text-[11px]">download</span>
+            <span>Unduh</span>
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="p-1 text-rose-400 hover:text-rose-300 font-bold text-xs cursor-pointer ml-0.5"
+            title="Hapus foto"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Sub-component for viewing files directly inside TaskDetailModal without force-downloading
+const FilePreviewSubModal: React.FC<{
+  fileName: string;
+  category: string;
+  title: string;
+  bidang: string;
+  noSurat?: string;
+  catatan?: string;
+  onClose: () => void;
+  onDownload: (fileName: string) => void;
+}> = ({ fileName, category, title, bidang, noSurat, catatan, onClose, onDownload }) => {
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [fileType, setFileType] = useState<'image' | 'pdf' | 'other'>('other');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    let createdUrl: string | null = null;
+
+    async function loadBlob() {
+      setIsLoading(true);
+      const res = await getStoredFileBlob(fileName);
+      if (!active) return;
+
+      if (res && res.blob) {
+        createdUrl = URL.createObjectURL(res.blob);
+        setFileUrl(createdUrl);
+
+        if (res.mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileName)) {
+          setFileType('image');
+        } else if (res.mimeType === 'application/pdf' || /\.pdf$/i.test(fileName)) {
+          setFileType('pdf');
+        } else {
+          setFileType('other');
+        }
+      } else {
+        if (/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileName)) {
+          setFileType('image');
+        } else if (/\.pdf$/i.test(fileName)) {
+          setFileType('pdf');
+        } else {
+          setFileType('other');
+        }
+      }
+      setIsLoading(false);
+    }
+
+    loadBlob();
+
+    return () => {
+      active = false;
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
+  }, [fileName]);
+
+  return (
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 animate-fadeIn font-['Inter',sans-serif] text-white">
+      <div className="bg-[#002845] rounded-2xl border border-cyan-500/40 shadow-2xl max-w-4xl w-full max-h-[94vh] overflow-hidden flex flex-col">
+        {/* Modal Header */}
+        <div className="bg-gradient-to-r from-[#003b5c] via-[#005f8e] to-[#003b5c] text-white px-5 py-3.5 flex justify-between items-center shrink-0 border-b border-white/15">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-cyan-300">
+              {fileType === 'image' ? 'photo' : fileType === 'pdf' ? 'picture_as_pdf' : 'visibility'}
+            </span>
+            <h4 className="font-['Lora',serif] font-bold text-base text-white truncate max-w-[450px]">
+              Pratinjau {category}: {fileName}
+            </h4>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-white/80 hover:text-white text-lg font-bold cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Modal Content */}
+        <div className="p-4 sm:p-6 bg-black/30 space-y-4 overflow-y-auto flex-1 text-white">
+          {isLoading ? (
+            <div className="p-10 text-center text-gray-300 bg-white/5 rounded-xl border border-white/15">
+              <span className="material-symbols-outlined text-3xl animate-spin text-cyan-400">sync</span>
+              <p className="text-xs font-semibold mt-2">Memuat berkas untuk pratinjau...</p>
+            </div>
+          ) : (
+            <OfficialDocumentViewer
+              data={{
+                title: title || fileName,
+                fileName: fileName,
+                noSurat: noSurat,
+                bidang: bidang,
+                catatan: catatan,
+                fileUrl: fileUrl,
+                fileType: fileType,
+              }}
+              onDownload={() => onDownload(fileName)}
+              onClose={onClose}
+            />
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="p-3 bg-[#001e36] border-t border-white/15 flex justify-between items-center gap-2 shrink-0 text-xs">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-semibold cursor-pointer border border-white/20"
+          >
+            Tutup Pratinjau
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openInGoogleDrive(fileName)}
+              className="px-3.5 py-2 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-md"
+            >
+              <span className="material-symbols-outlined text-sm">cloud</span>
+              <span>Google Drive</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onDownload(fileName)}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-md"
+            >
+              <span className="material-symbols-outlined text-sm">download</span>
+              <span>Unduh File</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface TaskDetailModalProps {
   task: TaskItem;
@@ -22,7 +268,16 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 }) => {
   const [title, setTitle] = useState(task.title);
   const [noSurat, setNoSurat] = useState(task.noSurat || '');
-  const [bidang, setBidang] = useState(task.bidang);
+  const [selectedBidangOption, setSelectedBidangOption] = useState<string>(
+    ['Legalisasi Operasional', 'Tata Kelola Rapat', 'Manajemen Korespondensi'].includes(task.bidang)
+      ? task.bidang
+      : '__TAMBAH_BARU__'
+  );
+  const [customBidang, setCustomBidang] = useState<string>(
+    ['Legalisasi Operasional', 'Tata Kelola Rapat', 'Manajemen Korespondensi'].includes(task.bidang)
+      ? ''
+      : task.bidang
+  );
   const [pj, setPj] = useState(task.pj === '—' ? '' : task.pj);
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [catatan, setCatatan] = useState(task.catatan);
@@ -75,11 +330,16 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     }
   };
 
+  const finalBidang =
+    selectedBidangOption === '__TAMBAH_BARU__'
+      ? customBidang.trim() || 'Bidang Umum'
+      : selectedBidangOption;
+
   const handleDownloadFile = (fileName: string) => {
     downloadStoredFile(fileName, {
       title,
       noSurat: noSurat || task.noSurat,
-      bidang,
+      bidang: finalBidang,
       catatan,
     });
   };
@@ -90,7 +350,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       ...task,
       title,
       noSurat: noSurat.trim() || task.noSurat || `012/SIPATI/2026`,
-      bidang,
+      bidang: finalBidang,
       pj: pj.trim() ? pj.trim() : '—',
       status,
       catatan,
@@ -101,12 +361,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#20201D]/50 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="relative w-full max-w-[620px] bg-[#FFFDF8] rounded-xl shadow-2xl overflow-hidden border border-[#E4DCC8] my-8 max-h-[90vh] flex flex-col font-['Inter',sans-serif]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 overflow-y-auto">
+      <div className="relative w-full max-w-[620px] bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-white/20 my-8 max-h-[90vh] flex flex-col font-['Inter',sans-serif] text-white">
         {/* Header Bar */}
-        <div className="bg-[#7a1220] text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
+        <div className="bg-[#003b5c]/90 backdrop-blur-md text-white px-6 py-4 flex justify-between items-center flex-shrink-0 border-b border-white/10">
           <div>
-            <span className="text-[10px] font-mono tracking-widest text-amber-200 uppercase block">
+            <span className="text-[10px] font-mono tracking-widest text-cyan-300 uppercase block font-bold">
               DETAIL DOKUMEN &amp; PEKERJAAN
             </span>
             <h3 className="font-['Lora',serif] text-[18px] font-bold tracking-tight text-white">
@@ -124,31 +384,31 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         </div>
 
         {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1 text-white">
           {/* NAMA PEKERJAAN / SURAT & NOMOR SURAT */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="sm:col-span-2">
-              <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-[#6E6A61] mb-1.5">
+              <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-cyan-300 mb-1.5">
                 NAMA PEKERJAAN / SURAT
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230] focus:ring-1 focus:ring-[#b62230]"
+                className="w-full bg-black/40 border border-white/20 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 font-['Inter',sans-serif]"
                 placeholder="Judul pekerjaan atau nama surat..."
                 required
               />
             </div>
             <div>
-              <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-[#6E6A61] mb-1.5">
+              <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-cyan-300 mb-1.5">
                 NOMOR SURAT
               </label>
               <input
                 type="text"
                 value={noSurat}
                 onChange={(e) => setNoSurat(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md font-mono text-[12px] text-[#57000f] font-semibold focus:outline-none focus:border-[#b62230] focus:ring-1 focus:ring-[#b62230]"
+                className="w-full px-3.5 py-2.5 bg-black/40 border border-white/20 rounded-xl font-mono text-[12px] text-cyan-300 font-semibold focus:outline-none focus:border-cyan-400 placeholder-gray-500"
                 placeholder="e.g. 045/SK/PAN-RI/2026"
               />
             </div>
@@ -157,24 +417,36 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           {/* BIDANG & PENANGGUNG JAWAB */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-[#6E6A61] mb-1.5">
-                BIDANG
+              <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-cyan-300 mb-1.5">
+                BIDANG PEKERJAAN
               </label>
               <select
-                value={bidang}
-                onChange={(e) => setBidang(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230] focus:ring-1 focus:ring-[#b62230]"
+                value={selectedBidangOption}
+                onChange={(e) => setSelectedBidangOption(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-[#002845] border border-white/20 rounded-xl text-[13.5px] text-white focus:outline-none focus:border-cyan-400 cursor-pointer"
               >
                 <option value="Legalisasi Operasional">Legalisasi Operasional</option>
                 <option value="Tata Kelola Rapat">Tata Kelola Rapat</option>
                 <option value="Manajemen Korespondensi">Manajemen Korespondensi</option>
-                <option value="Logistik & Perlengkapan">Logistik & Perlengkapan</option>
-                <option value="Keuangan & Audit">Keuangan & Audit</option>
+                <option value="__TAMBAH_BARU__">+ Tambah Bidang Pekerjaan Baru...</option>
               </select>
+
+              {selectedBidangOption === '__TAMBAH_BARU__' && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    required
+                    value={customBidang}
+                    onChange={(e) => setCustomBidang(e.target.value)}
+                    placeholder="Nama bidang pekerjaan baru..."
+                    className="w-full px-3.5 py-2 bg-black/50 border border-cyan-400/50 rounded-xl font-['Inter',sans-serif] text-[13px] text-cyan-200 placeholder-gray-400 focus:outline-none focus:border-cyan-300"
+                  />
+                </div>
+              )}
             </div>
 
             <div>
-              <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-[#6E6A61] mb-1.5">
+              <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-cyan-300 mb-1.5">
                 PENANGGUNG JAWAB (PJ)
               </label>
               <input
@@ -182,24 +454,24 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 value={pj}
                 onChange={(e) => setPj(e.target.value)}
                 placeholder="Nama PJ (e.g. Drs. Ahmad Yani)"
-                className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230] focus:ring-1 focus:ring-[#b62230]"
+                className="w-full px-3.5 py-2.5 bg-black/40 border border-white/20 rounded-xl text-[13.5px] text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
               />
             </div>
           </div>
 
           {/* STATUS PEKERJAAN Toggle Buttons */}
           <div>
-            <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-[#6E6A61] mb-1.5">
+            <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-cyan-300 mb-1.5">
               STATUS PEKERJAAN
             </label>
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setStatus('BELUM')}
-                className={`py-2.5 px-3 rounded-md font-mono text-[11px] font-bold tracking-wider transition-all cursor-pointer ${
+                className={`py-2.5 px-3 rounded-xl font-mono text-[11px] font-bold tracking-wider transition-all cursor-pointer ${
                   status === 'BELUM'
-                    ? 'bg-[#ece8df] border-2 border-[#8b7170] text-[#1c1c16] shadow-2xs'
-                    : 'bg-[#FFFDF8] border border-[#E4DCC8] text-[#6E6A61] hover:bg-[#f7f3ea]'
+                    ? 'bg-rose-500/30 border-2 border-rose-400 text-rose-200 shadow-md'
+                    : 'bg-white/10 border border-white/15 text-gray-300 hover:bg-white/20'
                 }`}
               >
                 BELUM
@@ -207,10 +479,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStatus('PROSES')}
-                className={`py-2.5 px-3 rounded-md font-mono text-[11px] font-bold tracking-wider transition-all cursor-pointer ${
+                className={`py-2.5 px-3 rounded-xl font-mono text-[11px] font-bold tracking-wider transition-all cursor-pointer ${
                   status === 'PROSES'
-                    ? 'bg-[#ffddb3] border-2 border-[#563700] text-[#392300] shadow-2xs'
-                    : 'bg-[#FFFDF8] border border-[#E4DCC8] text-[#6E6A61] hover:bg-[#f7f3ea]'
+                    ? 'bg-amber-500/30 border-2 border-amber-400 text-amber-200 shadow-md'
+                    : 'bg-white/10 border border-white/15 text-gray-300 hover:bg-white/20'
                 }`}
               >
                 PROSES
@@ -218,10 +490,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStatus('SELESAI')}
-                className={`py-2.5 px-3 rounded-md font-mono text-[11px] font-bold tracking-wider transition-all cursor-pointer ${
+                className={`py-2.5 px-3 rounded-xl font-mono text-[11px] font-bold tracking-wider transition-all cursor-pointer ${
                   status === 'SELESAI'
-                    ? 'bg-[#2F6B44]/15 border-2 border-[#2F6B44] text-[#2F6B44] shadow-2xs'
-                    : 'bg-[#FFFDF8] border border-[#E4DCC8] text-[#6E6A61] hover:bg-[#f7f3ea]'
+                    ? 'bg-emerald-500/30 border-2 border-emerald-400 text-emerald-200 shadow-md'
+                    : 'bg-white/10 border border-white/15 text-gray-300 hover:bg-white/20'
                 }`}
               >
                 SELESAI
@@ -231,7 +503,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
           {/* CATATAN */}
           <div>
-            <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-[#6E6A61] mb-1.5">
+            <label className="block font-semibold text-[11px] tracking-[0.08em] uppercase text-cyan-300 mb-1.5">
               CATATAN PEKERJAAN
             </label>
             <textarea
@@ -239,35 +511,35 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               value={catatan}
               onChange={(e) => setCatatan(e.target.value)}
               placeholder="Catatan tambahan..."
-              className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230] focus:ring-1 focus:ring-[#b62230]"
+              className="w-full px-3.5 py-2.5 bg-black/40 border border-white/20 rounded-xl text-[13.5px] text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400"
             />
           </div>
 
-          <div className="border-t border-[#E4DCC8] pt-4 space-y-5">
+          <div className="border-t border-white/15 pt-5 space-y-6">
             {/* 1. DRAFT PEKERJAAN */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="font-semibold text-[11px] tracking-[0.08em] uppercase text-[#57000f] flex items-center gap-1.5">
+              <div className="flex items-center justify-between mb-2">
+                <label className="font-semibold text-[11px] tracking-[0.08em] uppercase text-rose-300 flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-sm">edit_note</span>
                   DRAFT PEKERJAAN (KONSEP DOKUMEN)
                 </label>
-                <span className="text-[10px] font-mono text-[#8e8d8a]">
+                <span className="text-[10px] font-mono text-gray-300 font-bold bg-white/10 px-2 py-0.5 rounded-full border border-white/10">
                   {draftPekerjaan.length} Berkas
                 </span>
               </div>
 
               {draftPekerjaan.length > 0 ? (
-                <div className="space-y-2 mb-2.5">
+                <div className="space-y-2 mb-3">
                   {draftPekerjaan.map((fileName, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-2.5 bg-[#FFFDF8] rounded-lg border border-[#E4DCC8] shadow-2xs text-xs"
+                      className="flex items-center justify-between p-3 bg-white/10 rounded-xl border border-white/15 shadow-md text-xs text-white"
                     >
                       <div className="flex items-center gap-2 truncate pr-2">
-                        <span className="material-symbols-outlined text-base text-[#b62230]">
+                        <span className="material-symbols-outlined text-base text-rose-400">
                           description
                         </span>
-                        <span className="font-semibold text-[#1c1c16] truncate">
+                        <span className="font-semibold text-white truncate">
                           {fileName}
                         </span>
                       </div>
@@ -280,7 +552,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                               category: 'Draft Pekerjaan (Konsep)',
                             })
                           }
-                          className="px-2.5 py-1 bg-[#57000f] text-white hover:bg-[#8e1925] rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                          className="px-2.5 py-1.5 bg-[#003b5c] hover:bg-[#005f8e] text-cyan-200 border border-cyan-400/30 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-sm"
                         >
                           <span className="material-symbols-outlined text-[12px]">
                             visibility
@@ -290,7 +562,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleDownloadFile(fileName)}
-                          className="px-2.5 py-1 bg-emerald-700 text-white hover:bg-emerald-800 rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                          className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-sm"
                         >
                           <span className="material-symbols-outlined text-[12px]">
                             download
@@ -300,7 +572,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleRemoveFile(fileName, 'draft')}
-                          className="p-1 text-rose-700 hover:text-rose-900 font-bold text-xs cursor-pointer ml-1"
+                          className="p-1 text-rose-400 hover:text-rose-300 font-bold text-xs cursor-pointer ml-1"
                           title="Hapus draft"
                         >
                           ✕
@@ -310,17 +582,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-[#8e8d8a] italic mb-2">
+                <p className="text-xs text-gray-400 italic mb-2">
                   Belum ada draft pekerjaan yang diunggah.
                 </p>
               )}
 
-              <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-[#E4DCC8] rounded-lg bg-[#fdfaf2] hover:bg-[#f8f2e4] transition-colors cursor-pointer text-center group">
+              <label className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-rose-400/40 rounded-xl bg-rose-950/20 hover:bg-rose-950/40 transition-colors cursor-pointer text-center group">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#b62230] text-lg">
+                  <span className="material-symbols-outlined text-rose-300 text-lg">
                     note_add
                   </span>
-                  <span className="text-[12px] font-bold text-[#574141] group-hover:text-[#57000f]">
+                  <span className="text-[12px] font-bold text-rose-200 group-hover:text-white">
                     + Unggah Draft Pekerjaan Baru (.docx, .pdf, .pptx)
                   </span>
                 </div>
@@ -335,28 +607,28 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
             {/* 2. BUKTI DOKUMEN SELESAI */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="font-semibold text-[11px] tracking-[0.08em] uppercase text-[#2F6B44] flex items-center gap-1.5">
+              <div className="flex items-center justify-between mb-2">
+                <label className="font-semibold text-[11px] tracking-[0.08em] uppercase text-emerald-300 flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-sm">verified</span>
                   BUKTI DOKUMEN SELESAI
                 </label>
-                <span className="text-[10px] font-mono text-[#8e8d8a]">
+                <span className="text-[10px] font-mono text-gray-300 font-bold bg-white/10 px-2 py-0.5 rounded-full border border-white/10">
                   {buktiDokumen.length} Berkas
                 </span>
               </div>
 
               {buktiDokumen.length > 0 ? (
-                <div className="space-y-2 mb-2.5">
+                <div className="space-y-2 mb-3">
                   {buktiDokumen.map((fileName, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-2.5 bg-[#FFFDF8] rounded-lg border border-[#E4DCC8] shadow-2xs text-xs"
+                      className="flex items-center justify-between p-3 bg-white/10 rounded-xl border border-white/15 shadow-md text-xs text-white"
                     >
                       <div className="flex items-center gap-2 truncate pr-2">
-                        <span className="material-symbols-outlined text-base text-[#2F6B44]">
+                        <span className="material-symbols-outlined text-base text-emerald-400">
                           task_check
                         </span>
-                        <span className="font-semibold text-[#1c1c16] truncate">
+                        <span className="font-semibold text-white truncate">
                           {fileName}
                         </span>
                       </div>
@@ -369,7 +641,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                               category: 'Bukti Dokumen Selesai',
                             })
                           }
-                          className="px-2.5 py-1 bg-[#57000f] text-white hover:bg-[#8e1925] rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                          className="px-2.5 py-1.5 bg-[#003b5c] hover:bg-[#005f8e] text-cyan-200 border border-cyan-400/30 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-sm"
                         >
                           <span className="material-symbols-outlined text-[12px]">
                             visibility
@@ -379,7 +651,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleDownloadFile(fileName)}
-                          className="px-2.5 py-1 bg-emerald-700 text-white hover:bg-emerald-800 rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                          className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-sm"
                         >
                           <span className="material-symbols-outlined text-[12px]">
                             download
@@ -389,7 +661,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         <button
                           type="button"
                           onClick={() => handleRemoveFile(fileName, 'dokumen')}
-                          className="p-1 text-rose-700 hover:text-rose-900 font-bold text-xs cursor-pointer ml-1"
+                          className="p-1 text-rose-400 hover:text-rose-300 font-bold text-xs cursor-pointer ml-1"
                           title="Hapus dokumen"
                         >
                           ✕
@@ -399,17 +671,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-[#8e8d8a] italic mb-2">
+                <p className="text-xs text-gray-400 italic mb-2">
                   Belum ada bukti dokumen selesai.
                 </p>
               )}
 
-              <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-[#E4DCC8] rounded-lg bg-[#fdfaf2] hover:bg-[#f8f2e4] transition-colors cursor-pointer text-center group">
+              <label className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-emerald-400/40 rounded-xl bg-emerald-950/20 hover:bg-emerald-950/40 transition-colors cursor-pointer text-center group">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#2F6B44] text-lg">
+                  <span className="material-symbols-outlined text-emerald-300 text-lg">
                     attach_file
                   </span>
-                  <span className="text-[12px] font-bold text-[#574141] group-hover:text-[#2F6B44]">
+                  <span className="text-[12px] font-bold text-emerald-200 group-hover:text-white">
                     + Unggah Bukti Dokumen Selesai
                   </span>
                 </div>
@@ -422,91 +694,57 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </label>
             </div>
 
-            {/* 3. BUKTI SURAT DITERIMA */}
+            {/* 3. BUKTI SURAT DITERIMA (TANDA TERIMA) */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="font-semibold text-[11px] tracking-[0.08em] uppercase text-blue-800 flex items-center gap-1.5">
+              <div className="flex items-center justify-between mb-2">
+                <label className="font-semibold text-[11px] tracking-[0.08em] uppercase text-sky-300 flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-sm">mark_email_read</span>
-                  BUKTI SURAT DITERIMA (TANDA TERIMA)
+                  BUKTI SURAT DITERIMA (TANDA TERIMA - FOTO / BERKAS)
                 </label>
-                <span className="text-[10px] font-mono text-[#8e8d8a]">
-                  {buktiSuratDiterima.length} Berkas
+                <span className="text-[10px] font-mono text-gray-300 font-bold bg-white/10 px-2 py-0.5 rounded-full border border-white/10">
+                  {buktiSuratDiterima.length} Foto / Berkas
                 </span>
               </div>
 
               {buktiSuratDiterima.length > 0 ? (
-                <div className="space-y-2 mb-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3">
                   {buktiSuratDiterima.map((fileName, idx) => (
-                    <div
+                    <ReceiptPhotoItem
                       key={idx}
-                      className="flex items-center justify-between p-2.5 bg-[#FFFDF8] rounded-lg border border-[#E4DCC8] shadow-2xs text-xs"
-                    >
-                      <div className="flex items-center gap-2 truncate pr-2">
-                        <span className="material-symbols-outlined text-base text-blue-700">
-                          photo_camera
-                        </span>
-                        <span className="font-semibold text-[#1c1c16] truncate">
-                          {fileName}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActivePreview({
-                              fileName,
-                              category: 'Bukti Surat Diterima',
-                            })
-                          }
-                          className="px-2.5 py-1 bg-[#57000f] text-white hover:bg-[#8e1925] rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                        >
-                          <span className="material-symbols-outlined text-[12px]">
-                            visibility
-                          </span>
-                          <span>Lihat</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadFile(fileName)}
-                          className="px-2.5 py-1 bg-emerald-700 text-white hover:bg-emerald-800 rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                        >
-                          <span className="material-symbols-outlined text-[12px]">
-                            download
-                          </span>
-                          <span>Unduh</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleRemoveFile(fileName, 'tandaTerima')
-                          }
-                          className="p-1 text-rose-700 hover:text-rose-900 font-bold text-xs cursor-pointer ml-1"
-                          title="Hapus bukti terima"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
+                      fileName={fileName}
+                      onPreview={() =>
+                        setActivePreview({
+                          fileName,
+                          category: 'Bukti Surat Diterima',
+                        })
+                      }
+                      onDownload={() => handleDownloadFile(fileName)}
+                      onRemove={() => handleRemoveFile(fileName, 'tandaTerima')}
+                    />
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-[#8e8d8a] italic mb-2">
-                  Belum ada bukti surat diterima.
+                <p className="text-xs text-gray-400 italic mb-2">
+                  Belum ada foto / bukti tanda terima surat yang diunggah.
                 </p>
               )}
 
-              <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-[#E4DCC8] rounded-lg bg-[#fdfaf2] hover:bg-[#f8f2e4] transition-colors cursor-pointer text-center group">
+              <label className="flex flex-col items-center justify-center p-3.5 border-2 border-dashed border-sky-400/40 rounded-xl bg-sky-950/20 hover:bg-sky-950/40 transition-colors cursor-pointer text-center group">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-blue-700 text-lg">
-                    photo_camera
+                  <span className="material-symbols-outlined text-sky-300 text-lg">
+                    add_a_photo
                   </span>
-                  <span className="text-[12px] font-bold text-[#574141] group-hover:text-blue-800">
-                    + Unggah Foto Tanda Terima / Bukti Diterima
+                  <span className="text-[12px] font-bold text-sky-200 group-hover:text-white">
+                    + Unggah Multi Foto Tanda Terima / Bukti Surat Diterima
                   </span>
                 </div>
+                <span className="text-[10.5px] text-gray-300 mt-0.5">
+                  Dapat memilih &amp; mengunggah lebih dari 1 foto sekaligus (.jpg, .png, .pdf)
+                </span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.pdf,.doc,.docx"
+                  multiple
                   onChange={(e) => handleFileUpload(e, 'tandaTerima')}
                   className="hidden"
                 />
@@ -515,12 +753,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           </div>
 
           {/* Form Actions */}
-          <div className="pt-4 border-t border-[#E4DCC8] flex items-center justify-between gap-3">
+          <div className="pt-4 border-t border-white/15 flex items-center justify-between gap-3">
             {onDelete ? (
               <button
                 type="button"
                 onClick={() => onDelete(task.id)}
-                className="px-4 py-2.5 bg-[#ffdad6] hover:bg-[#ba1a1a] text-[#93000a] hover:text-white rounded-md text-[12px] font-semibold transition-colors cursor-pointer"
+                className="px-4 py-2.5 bg-rose-500/20 hover:bg-rose-600 text-rose-200 hover:text-white border border-rose-500/30 rounded-xl text-[12px] font-semibold transition-colors cursor-pointer"
               >
                 Hapus
               </button>
@@ -532,13 +770,13 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 bg-[#FFFDF8] border border-[#E4DCC8] hover:bg-[#f1eee5] text-[#20201D] rounded-md text-[12px] font-semibold transition-colors cursor-pointer"
+                className="px-5 py-2.5 bg-white/10 border border-white/20 hover:bg-white/20 text-white rounded-xl text-[12px] font-semibold transition-colors cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-[#b62230] hover:bg-[#57000f] text-white rounded-md text-[12px] font-semibold transition-colors shadow-xs cursor-pointer active:scale-95"
+                className="px-6 py-2.5 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-xl text-[12px] font-bold uppercase tracking-wider transition-all shadow-lg hover:shadow-cyan-500/25 cursor-pointer active:scale-95"
               >
                 Simpan Perubahan
               </button>
@@ -547,119 +785,18 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         </form>
       </div>
 
-      {/* SUB-MODAL FOR FILE PREVIEW (LIHAT DOKUMEN) */}
+      {/* SUB-MODAL FOR REAL DIRECT IN-APP FILE & PHOTO PREVIEW */}
       {activePreview && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn font-['Inter',sans-serif]">
-          <div className="bg-[#FFFDF8] rounded-xl border border-[#E4DCC8] shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
-            {/* Modal Header */}
-            <div className="bg-[#57000f] text-white px-5 py-3.5 flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-amber-200">
-                  visibility
-                </span>
-                <h4 className="font-['Lora',serif] font-bold text-base text-white">
-                  Pratinjau {activePreview.category}
-                </h4>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActivePreview(null)}
-                className="text-white/80 hover:text-white text-lg font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Preview Document Paper */}
-            <div className="p-6 bg-[#fdf9f0] space-y-4 text-xs">
-              <div className="border-b-2 border-[#1c1c16] pb-3 text-center space-y-0.5">
-                <p className="font-['Lora',serif] font-bold text-sm text-[#57000f] uppercase">
-                  PANITIA PELAKSANA PERINGATAN HUT RI KE-81
-                </p>
-                <p className="font-mono text-[10px] text-[#574141]">
-                  SISTEM INFORMASI ADMINISTRASI PANITIA (SIPATI 2026)
-                </p>
-              </div>
-
-              <div className="bg-white p-3.5 rounded-lg border border-[#E4DCC8] space-y-1.5 shadow-2xs">
-                <div className="flex justify-between items-start">
-                  <span className="font-mono text-[10px] uppercase font-bold text-[#b62230]">
-                    {activePreview.category}
-                  </span>
-                  <span className="px-2 py-0.5 border border-[#2F6B44] text-[#2F6B44] font-mono text-[10px] font-bold rounded">
-                    TERVERIFIKASI
-                  </span>
-                </div>
-                <h5 className="font-bold text-sm text-[#1c1c16]">
-                  {activePreview.fileName}
-                </h5>
-                <p className="text-[11px] text-[#574141]">
-                  Pekerjaan: <span className="font-semibold">{title}</span>
-                </p>
-                <p className="text-[11px] text-[#574141]">
-                  Bidang: <span className="font-semibold">{bidang}</span>
-                </p>
-                {task.noSurat && (
-                  <p className="text-[11px] text-[#574141]">
-                    No Surat: <span className="font-mono font-semibold">{task.noSurat}</span>
-                  </p>
-                )}
-              </div>
-
-              {/* Simulated Content / Photo Box */}
-              <div className="bg-white p-4 rounded-lg border border-dashed border-[#8e8d8a] text-[#574141] text-[11.5px] leading-relaxed space-y-2">
-                <p className="font-semibold text-[#1c1c16]">
-                  Ringkasan Isi Berkas:
-                </p>
-                <p>
-                  {catatan ||
-                    'Naskah berkas resmi panitia HUT RI Ke-81 telah tersimpan secara aman dan terenkripsi.'}
-                </p>
-                {activePreview.fileName.endsWith('.jpg') || activePreview.fileName.endsWith('.png') ? (
-                  <div className="mt-3 p-6 bg-slate-100 border rounded flex flex-col items-center justify-center text-slate-500 gap-1">
-                    <span className="material-symbols-outlined text-3xl">image</span>
-                    <span className="text-[11px] font-semibold">
-                      [Foto Pratinjau Tanda Terima / Bukti Surat]
-                    </span>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-3.5 bg-[#FFFDF8] border-t border-[#E4DCC8] flex flex-wrap justify-between items-center shrink-0 gap-2">
-              <button
-                type="button"
-                onClick={() => setActivePreview(null)}
-                className="px-4 py-2 border border-[#E4DCC8] bg-white text-[#20201D] rounded font-bold text-xs hover:bg-slate-50 transition cursor-pointer"
-              >
-                Tutup
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => openInGoogleDrive(activePreview.fileName)}
-                  className="px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-                >
-                  <span className="material-symbols-outlined text-sm">cloud</span>
-                  <span>Buka di Google Drive</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleDownloadFile(activePreview.fileName);
-                  }}
-                  className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-                >
-                  <span className="material-symbols-outlined text-sm">
-                    download
-                  </span>
-                  <span>Unduh Berkas</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <FilePreviewSubModal
+          fileName={activePreview.fileName}
+          category={activePreview.category}
+          title={title}
+          bidang={finalBidang}
+          noSurat={task.noSurat}
+          catatan={catatan}
+          onClose={() => setActivePreview(null)}
+          onDownload={handleDownloadFile}
+        />
       )}
     </div>
   );

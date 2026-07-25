@@ -137,23 +137,23 @@ export const TemplateSurat: React.FC<TemplateSuratProps> = ({
   return (
     <div className="space-y-6 pb-12 font-['Inter',sans-serif]">
       {/* Header Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#FFFDF8] p-6 rounded-2xl border border-[#E4DCC8] shadow-2xs">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-black/45 backdrop-blur-xl p-6 rounded-2xl border border-white/20 shadow-2xl text-white">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#57000f]/10 rounded-full text-xs font-bold text-[#57000f] mb-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 border border-cyan-400/30 rounded-full text-xs font-bold text-cyan-300 mb-2">
             <span className="material-symbols-outlined text-sm">description</span>
             Pustaka Template Naskah Dinas Resmi
           </div>
-          <h2 className="font-['Lora',serif] text-2xl md:text-3xl font-bold text-[#57000f]">
+          <h2 className="font-['Lora',serif] text-2xl md:text-3xl font-bold text-white">
             Template Surat &amp; Dokumen
           </h2>
-          <p className="text-xs md:text-sm text-[#574141] mt-1">
-            Format baku tata naskah dinas kementerian untuk percepatan penyusunan surat panitia HUT RI Ke-81.
+          <p className="text-xs md:text-sm text-gray-300 mt-1">
+            Format baku tata naskah dinas kementerian untuk percepatan penyusunan surat panitia.
           </p>
         </div>
 
         <button
           onClick={handleAddNewTemplate}
-          className="px-5 py-2.5 bg-[#b62230] hover:bg-[#57000f] text-white rounded-xl text-xs md:text-sm font-bold transition shadow-sm flex items-center gap-2 cursor-pointer active:scale-95 shrink-0"
+          className="px-5 py-2.5 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-xl text-xs md:text-sm font-bold uppercase tracking-wider transition shadow-lg hover:shadow-cyan-500/25 flex items-center gap-2 cursor-pointer active:scale-95 shrink-0"
         >
           <span className="material-symbols-outlined text-sm">add</span>
           Tambah Template Baru
@@ -165,46 +165,46 @@ export const TemplateSurat: React.FC<TemplateSuratProps> = ({
         {categoriesList.map((cat) => {
           const catTemplates = templates.filter((t) => t.category === cat);
           return (
-            <div key={cat} className="rounded-xl overflow-hidden border border-[#E4DCC8] bg-[#FFFDF8] shadow-2xs">
+            <div key={cat} className="rounded-2xl overflow-hidden border border-white/20 bg-black/45 backdrop-blur-xl shadow-xl text-white">
               {/* Category Header */}
-              <div className="bg-[#7a1220] text-white px-5 py-3.5 flex items-center justify-between">
-                <div className="flex items-center gap-2 font-[#FFFDF8]">
-                  <span className="text-base">{getCategoryIcon(cat)}</span>
+              <div className="bg-gradient-to-r from-[#003b5c]/90 via-[#005f8e]/90 to-[#003b5c]/90 border-b border-cyan-500/30 text-white px-5 py-3.5 flex items-center justify-between backdrop-blur-md">
+                <div className="flex items-center gap-2 text-white">
+                  <span className="text-base text-cyan-300">{getCategoryIcon(cat)}</span>
                   <h3 className="font-['Lora',serif] text-base md:text-lg font-bold tracking-wide">
                     {cat}
                   </h3>
                 </div>
-                <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-[#57000f] text-[#FFFDF8] border border-white/20">
+                <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-cyan-950/60 text-cyan-200 border border-cyan-400/40">
                   {catTemplates.length} template
                 </span>
               </div>
 
               {/* Template Items List */}
-              <div className="divide-y divide-[#E4DCC8]/60">
+              <div className="divide-y divide-white/10">
                 {catTemplates.length > 0 ? (
                   catTemplates.map((tpl) => (
                     <div
                       key={tpl.id}
                       onClick={() => handleOpenDetailModal(tpl)}
-                      className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 px-5 hover:bg-[#fcf8ee] transition cursor-pointer gap-3 group"
+                      className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 px-5 hover:bg-white/10 transition cursor-pointer gap-3 group"
                     >
                       {/* Left: Title and subtitles */}
                       <div className="space-y-1">
-                        <h4 className="font-bold text-sm md:text-base text-[#1c1c16] group-hover:text-[#b62230] transition">
+                        <h4 className="font-bold text-sm md:text-base text-white group-hover:text-cyan-300 transition">
                           {tpl.title}
                         </h4>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-[#6E6A61]">
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-300">
                           {tpl.googleDocsUrl ? (
-                            <span className="text-blue-700 font-medium flex items-center gap-1">
+                            <span className="text-cyan-300 font-medium flex items-center gap-1">
                               <span className="material-symbols-outlined text-xs">link</span>
                               ada tautan Google Docs
                             </span>
                           ) : (
-                            <span className="text-[#8e8d8a]">belum ada tautan Google Docs</span>
+                            <span className="text-gray-400">belum ada tautan Google Docs</span>
                           )}
 
                           {tpl.backupFile && (
-                            <span className="text-[#574141] font-medium flex items-center gap-1">
+                            <span className="text-gray-200 font-medium flex items-center gap-1">
                               <span className="material-symbols-outlined text-xs">attach_file</span>
                               berkas template terlampir
                             </span>
@@ -213,21 +213,21 @@ export const TemplateSurat: React.FC<TemplateSuratProps> = ({
                       </div>
 
                       {/* Middle: Target Pekerjaan */}
-                      <div className="text-xs text-[#574141] md:text-right max-w-md">
-                        <span className="text-[#8e8d8a]">Pekerjaan: </span>
-                        <span className="font-semibold text-[#1c1c16]">{tpl.targetPekerjaan || '-'}</span>
+                      <div className="text-xs text-gray-300 md:text-right max-w-md">
+                        <span className="text-gray-400">Pekerjaan: </span>
+                        <span className="font-semibold text-white">{tpl.targetPekerjaan || '-'}</span>
                       </div>
 
                       {/* Right: Status Dashed Pill */}
                       <div className="shrink-0">
-                        <span className="border border-dashed border-[#8e8d8a] text-[#8e8d8a] bg-transparent font-mono text-[11px] px-3.5 py-1 rounded-full font-bold tracking-wider inline-block uppercase">
+                        <span className="border border-dashed border-cyan-400/50 text-cyan-300 bg-cyan-950/40 font-mono text-[11px] px-3.5 py-1 rounded-full font-bold tracking-wider inline-block uppercase">
                           {tpl.status || 'BELUM'}
                         </span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="p-6 text-center text-xs text-[#8e8d8a]">
+                  <div className="p-6 text-center text-xs text-gray-400">
                     Belum ada template pada kategori ini.
                   </div>
                 )}

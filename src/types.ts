@@ -63,4 +63,17 @@ export interface TeamMember {
   role: 'Officer / Administrator' | 'Analis Kebijakan' | 'Staf Operasional';
 }
 
+export interface BannerConfig {
+  enabled: boolean;
+  title: string;
+  message: string;
+  type: 'info' | 'warning' | 'success' | 'urgent';
+  linkUrl?: string;
+  linkText?: string;
+  imageUrl?: string;
+  dismissible?: boolean;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export type ViewMode = 'landing' | 'login' | 'ringkasan' | 'pekerjaan' | 'template' | 'arsip' | 'pengaturan' | 'appscript';

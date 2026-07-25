@@ -1,7 +1,6 @@
 import React from 'react';
 import { ViewMode } from '../types';
-
-import garudaEmblemImg from '../assets/images/garuda_pancasila_emblem_1784830236371.jpg';
+import { SipatiLogo } from './SipatiLogo';
 
 interface SidebarProps {
   currentView: ViewMode;
@@ -20,15 +19,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   onLogout,
 }) => {
-  const navItems: { view: ViewMode; label: string; icon: string }[] = [
+  // Determine if logged-in user is an Officer / Admin
+  const checkIsAdmin = () => {
+    try {
+      const saved = localStorage.getItem('sipati_current_user');
+      if (saved) {
+        const u = JSON.parse(saved);
+        const role = (u.role || '').toLowerCase();
+        const username = (u.username || '').toLowerCase();
+        return (
+          role.includes('officer') ||
+          role.includes('admin') ||
+          username === 'admin' ||
+          username === 'gilang.admin' ||
+          username === '197805122003121002'
+        );
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return true; // Default fallback
+  };
+
+  const isAdmin = checkIsAdmin();
+
+  const allNavItems: { view: ViewMode; label: string; icon: string; adminOnly?: boolean }[] = [
     { view: 'ringkasan', label: 'Ringkasan', icon: 'dashboard' },
     { view: 'pekerjaan', label: 'Daftar Pekerjaan', icon: 'assignment' },
     { view: 'template', label: 'Template Surat', icon: 'description' },
     { view: 'arsip', label: 'Arsip', icon: 'archive' },
-    { view: 'appscript', label: 'Google Apps Script', icon: 'terminal' },
+    { view: 'appscript', label: 'Google Apps Script', icon: 'terminal', adminOnly: true },
   ];
 
-  const garudaEmblem = "https://lh3.googleusercontent.com/aida-public/AB6AXuBdTKxvMfIbUgLDAUlIAtX4XNv4pCemgtqolj_rzsmneefEjyDJjkpBCmbyjZLVDyOy9_8rYN3fGJsRm64jAnIwtL5nZcMVBwLc9lITcY_BNRCUrXkz4ZbajUrexQtrTyI9wKZGR79t8Gueh5fAgv05nIJYZf_TLiJLXKeBfAmIF3otwuvopCOyoDtdZQFpei4nsmiCGLMyV-_J1EgNjGFRf_7xkSZeptL20DQa_ekk4MZPc3WtfaFXxDagIfZ8YvKUTFyHNAhkyHg";
+  const navItems = allNavItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <>
@@ -41,22 +64,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed left-0 top-0 h-screen w-[250px] bg-[#57000f] text-white border-r border-[#E4DCC8] flex flex-col py-[28px] px-[14px] z-40 transition-transform duration-300 ${
+        className={`fixed left-0 top-0 h-screen w-[250px] bg-black/60 backdrop-blur-xl text-white border-r border-white/15 flex flex-col py-[28px] px-[14px] z-40 transition-transform duration-300 ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
         {/* Brand Logo & Title */}
         <div className="mb-6 px-3 flex items-center gap-3">
-          <img
-            src={garudaEmblemImg}
-            alt="Lambang Garuda Pancasila"
-            className="w-10 h-10 object-contain bg-[#FFFDF8] rounded-full p-1 border border-[#E4DCC8] shadow-xs"
-          />
+          <SipatiLogo size={42} className="drop-shadow-md" />
           <div>
-            <h1 className="font-['Lora',serif] text-[26px] font-bold tracking-tight text-[#FFFDF8] leading-tight">
+            <h1 className="font-['Lora',serif] text-[26px] font-bold tracking-tight text-white leading-tight">
               SIPATI
             </h1>
-            <p className="text-[10px] text-[#FFFDF8] opacity-75 leading-tight font-['Inter',sans-serif]">
+            <p className="text-[10px] text-gray-300 leading-tight font-['Inter',sans-serif]">
               Tata Pemerintahan Kubu Raya
             </p>
           </div>
@@ -69,7 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onOpenProposalModal();
               onCloseMobile();
             }}
-            className="w-full bg-[#ff595e] hover:bg-[#ff595e]/90 text-[#60000e] font-['Inter',sans-serif] font-semibold text-[11.5px] tracking-wider uppercase py-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 shadow-sm cursor-pointer active:scale-95"
+            className="w-full bg-[#00a3e0] hover:bg-[#008bc2] text-white font-['Inter',sans-serif] font-bold text-[11.5px] tracking-wider uppercase py-3 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-cyan-500/25 cursor-pointer active:scale-95"
           >
             <span className="material-symbols-outlined text-sm font-bold">add</span>
             Buat Pekerjaan
@@ -87,10 +106,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onNavigate(item.view);
                   onCloseMobile();
                 }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 font-['Inter',sans-serif] text-[13.5px] cursor-pointer ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 font-['Inter',sans-serif] text-[13.5px] cursor-pointer ${
                   isActive
-                    ? 'bg-[#ff595e] text-[#60000e] font-bold shadow-sm scale-[0.98]'
-                    : 'text-white/80 hover:text-white hover:bg-[#7a1220]'
+                    ? 'bg-[#00a3e0] text-white font-bold shadow-md scale-[0.98]'
+                    : 'text-gray-300 hover:text-white hover:bg-white/10'
                 }`}
               >
                 <span
@@ -106,16 +125,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* Footer Links */}
-        <div className="mt-auto pt-4 border-t border-[#7a1220] flex flex-col gap-1">
+        <div className="mt-auto pt-4 border-t border-white/15 flex flex-col gap-1">
           <button
             onClick={() => {
               onNavigate('pengaturan');
               onCloseMobile();
             }}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors font-['Inter',sans-serif] text-[13px] ${
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-left transition-colors font-['Inter',sans-serif] text-[13px] ${
               currentView === 'pengaturan'
-                ? 'bg-[#7a1220] text-white font-semibold'
-                : 'text-white/80 hover:text-white hover:bg-[#7a1220]'
+                ? 'bg-white/20 text-white font-semibold'
+                : 'text-gray-300 hover:text-white hover:bg-white/10'
             }`}
           >
             <span className="material-symbols-outlined text-sm">settings</span>
@@ -130,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }
               onCloseMobile();
             }}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-left text-white/80 hover:text-white hover:bg-[#7a1220] transition-colors font-['Inter',sans-serif] text-[13px] cursor-pointer"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-left text-gray-300 hover:text-rose-300 hover:bg-rose-950/40 transition-colors font-['Inter',sans-serif] text-[13px] cursor-pointer"
           >
             <span className="material-symbols-outlined text-sm">logout</span>
             <span>Keluar</span>

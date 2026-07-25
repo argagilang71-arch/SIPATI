@@ -146,20 +146,20 @@ export const GoogleDriveManager: React.FC<GoogleDriveManagerProps> = ({
 
   if (compact) {
     return (
-      <div className="bg-[#FFFDF8] border border-[#E4DCC8] rounded-xl p-4 space-y-3 font-['Inter',sans-serif]">
+      <div className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-xl p-4 shadow-lg text-white space-y-3 font-['Inter',sans-serif]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#57000f]">add_to_drive</span>
-            <span className="font-['Lora',serif] font-bold text-sm text-[#57000f]">Integrasi Google Drive API</span>
+            <span className="material-symbols-outlined text-cyan-300">add_to_drive</span>
+            <span className="font-['Lora',serif] font-bold text-sm text-white">Integrasi Google Drive API</span>
           </div>
 
           {user ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               {user.email}
             </span>
           ) : (
-            <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+            <span className="text-[11px] font-semibold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30">
               Belum Login Google
             </span>
           )}
@@ -170,7 +170,7 @@ export const GoogleDriveManager: React.FC<GoogleDriveManagerProps> = ({
             type="button"
             onClick={handleSignIn}
             disabled={isSigningIn}
-            className="w-full py-2 px-3 bg-white hover:bg-slate-50 border border-[#E4DCC8] rounded-lg text-xs font-bold text-[#1c1c16] flex items-center justify-center gap-2 shadow-xs cursor-pointer transition active:scale-95 disabled:opacity-50"
+            className="w-full py-2 px-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-xs font-bold text-white flex items-center justify-center gap-2 shadow-xs cursor-pointer transition active:scale-95 disabled:opacity-50"
           >
             <svg className="w-4 h-4" viewBox="0 0 48 48">
               <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
@@ -181,10 +181,10 @@ export const GoogleDriveManager: React.FC<GoogleDriveManagerProps> = ({
             <span>{isSigningIn ? 'Menghubungkan...' : 'Hubungkan dengan Google Drive'}</span>
           </button>
         ) : (
-          <div className="flex items-center justify-between text-xs pt-1 border-t border-[#E4DCC8]">
-            <span className="text-[#6E6A61]">{driveFiles.length} Berkas Tersedia di Drive</span>
+          <div className="flex items-center justify-between text-xs pt-1 border-t border-white/10">
+            <span className="text-gray-300">{driveFiles.length} Berkas Tersedia di Drive</span>
             <div className="flex items-center gap-2">
-              <label className="px-2.5 py-1 bg-[#57000f] text-white hover:bg-[#b62230] rounded text-[11px] font-bold cursor-pointer transition">
+              <label className="px-2.5 py-1 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded text-[11px] font-bold cursor-pointer transition">
                 <span>{uploading ? 'Mengunggah...' : '+ Unggah File'}</span>
                 <input
                   type="file"
@@ -196,7 +196,7 @@ export const GoogleDriveManager: React.FC<GoogleDriveManagerProps> = ({
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="text-rose-700 hover:underline text-[11px] font-medium"
+                className="text-rose-400 hover:underline text-[11px] font-medium"
               >
                 Putuskan
               </button>
@@ -208,27 +208,27 @@ export const GoogleDriveManager: React.FC<GoogleDriveManagerProps> = ({
   }
 
   return (
-    <div className="bg-[#FFFDF8] border border-[#E4DCC8] rounded-xl p-6 shadow-2xs space-y-5 font-['Inter',sans-serif]">
+    <div className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl p-6 shadow-xl space-y-5 font-['Inter',sans-serif] text-white">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E4DCC8] pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
         <div>
-          <h3 className="font-['Lora',serif] text-[17px] font-bold text-[#57000f] flex items-center gap-2">
-            <span className="material-symbols-outlined text-base">cloud_sync</span>
+          <h3 className="font-['Lora',serif] text-[17px] font-bold text-white flex items-center gap-2">
+            <span className="material-symbols-outlined text-base text-cyan-300">cloud_sync</span>
             Koneksi Resmi Google Drive API &amp; Penyimpanan Cloud
           </h3>
-          <p className="text-xs text-[#6E6A61] mt-0.5">
+          <p className="text-xs text-gray-300 mt-0.5">
             Otentikasi dengan akun Google Anda untuk mengakses, menyimpan, dan menyinkronkan dokumen naskah dinas SIPATI langsung ke Google Drive Anda.
           </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           {user ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>Terhubung: {user.email}</span>
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
               <span className="material-symbols-outlined text-sm">warning</span>
               <span>Belum Terhubung</span>
             </span>

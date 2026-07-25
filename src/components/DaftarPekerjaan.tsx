@@ -18,13 +18,20 @@ export const DaftarPekerjaan: React.FC<DaftarPekerjaanProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Default categories matching exact image layout
-  const defaultCategories = [
+  // Base default categories
+  const baseCategories = [
     { name: 'Legalisasi Operasional', icon: 'description' },
     { name: 'Tata Kelola Rapat', icon: 'groups' },
     { name: 'Manajemen Korespondensi', icon: 'mail' },
-    { name: 'Logistik & Perlengkapan', icon: 'inventory_2' },
-    { name: 'Keuangan & Audit', icon: 'payments' },
+  ];
+
+  // Dynamically include any custom bidang defined in tasks
+  const customBidangList = Array.from(new Set(tasks.map((t) => t.bidang)))
+    .filter((b) => b && !baseCategories.some((c) => c.name === b));
+
+  const allCategories = [
+    ...baseCategories,
+    ...customBidangList.map((b) => ({ name: b, icon: 'folder' })),
   ];
 
   // Filter tasks based on filters
@@ -44,36 +51,36 @@ export const DaftarPekerjaan: React.FC<DaftarPekerjaanProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Filter Bar */}
-      <div className="bg-[#FFFDF8] border border-[#E4DCC8] rounded-xl p-4 shadow-2xs flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4 text-white">
         <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
           {/* Bidang Select */}
-          <div className="flex items-center gap-1.5 bg-[#f1eee5] rounded-md px-3 py-1.5 border border-[#E4DCC8]">
-            <span className="font-['JetBrains_Mono',monospace] text-[10px] uppercase font-bold text-[#6E6A61]">
+          <div className="flex items-center gap-1.5 bg-white/10 rounded-xl px-3.5 py-2 border border-white/20">
+            <span className="font-['JetBrains_Mono',monospace] text-[10px] uppercase font-bold text-gray-300">
               Bidang:
             </span>
             <select
               value={selectedBidang}
               onChange={(e) => setSelectedBidang(e.target.value)}
-              className="bg-transparent border-none focus:outline-none text-[13px] text-[#20201D] font-medium p-0"
+              className="bg-slate-900 text-white border-none focus:outline-none text-[13px] font-medium p-1 rounded-md cursor-pointer"
             >
               <option value="Semua">Semua Bidang</option>
-              <option value="Legalisasi Operasional">Legalisasi Operasional</option>
-              <option value="Tata Kelola Rapat">Tata Kelola Rapat</option>
-              <option value="Manajemen Korespondensi">Manajemen Korespondensi</option>
-              <option value="Logistik & Perlengkapan">Logistik & Perlengkapan</option>
-              <option value="Keuangan & Audit">Keuangan & Audit</option>
+              {allCategories.map((cat) => (
+                <option key={cat.name} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
             </select>
           </div>
 
           {/* Status Select */}
-          <div className="flex items-center gap-1.5 bg-[#f1eee5] rounded-md px-3 py-1.5 border border-[#E4DCC8]">
-            <span className="font-['JetBrains_Mono',monospace] text-[10px] uppercase font-bold text-[#6E6A61]">
+          <div className="flex items-center gap-1.5 bg-white/10 rounded-xl px-3.5 py-2 border border-white/20">
+            <span className="font-['JetBrains_Mono',monospace] text-[10px] uppercase font-bold text-gray-300">
               Status:
             </span>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-transparent border-none focus:outline-none text-[13px] text-[#20201D] font-medium p-0"
+              className="bg-slate-900 text-white border-none focus:outline-none text-[13px] font-medium p-1 rounded-md cursor-pointer"
             >
               <option value="Semua">Semua Status</option>
               <option value="BELUM">BELUM</option>
@@ -83,8 +90,8 @@ export const DaftarPekerjaan: React.FC<DaftarPekerjaanProps> = ({
           </div>
 
           {/* Search Box */}
-          <div className="flex-1 min-w-[200px] flex items-center bg-[#ffffff] border border-[#E4DCC8] rounded-md px-3 py-1.5">
-            <span className="material-symbols-outlined text-[#6E6A61] text-sm mr-2">
+          <div className="flex-1 min-w-[200px] flex items-center bg-white/10 border border-white/20 rounded-xl px-3.5 py-2">
+            <span className="material-symbols-outlined text-gray-300 text-sm mr-2">
               search
             </span>
             <input
@@ -92,7 +99,7 @@ export const DaftarPekerjaan: React.FC<DaftarPekerjaanProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari nama pekerjaan..."
-              className="w-full bg-transparent border-none focus:outline-none text-[13px] text-[#20201D] p-0"
+              className="w-full bg-transparent border-none focus:outline-none text-[13px] text-white placeholder-gray-400 p-0"
             />
           </div>
         </div>
@@ -100,16 +107,16 @@ export const DaftarPekerjaan: React.FC<DaftarPekerjaanProps> = ({
         {/* Add Task Button */}
         <button
           onClick={onAddTask}
-          className="bg-[#b62230] hover:bg-[#57000f] text-white font-['Inter',sans-serif] font-semibold text-[11.5px] uppercase tracking-wider px-4 py-2 rounded-md shadow-2xs flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+          className="bg-[#00a3e0] hover:bg-[#008bc2] text-white font-['Inter',sans-serif] font-bold text-[11.5px] uppercase tracking-wider px-4 py-2.5 rounded-xl shadow-lg hover:shadow-cyan-500/25 flex items-center gap-2 transition-all cursor-pointer active:scale-95 shrink-0"
         >
-          <span className="material-symbols-outlined text-sm">add</span>
+          <span className="material-symbols-outlined text-sm font-bold">add</span>
           Tambah Pekerjaan
         </button>
       </div>
 
       {/* Task Sections Grouped by Category */}
       <div className="space-y-6">
-        {defaultCategories.map((cat) => {
+        {allCategories.map((cat) => {
           const categoryTasks = filteredTasks.filter((t) => t.bidang === cat.name);
 
           // Calculate completed counter
@@ -129,61 +136,61 @@ export const DaftarPekerjaan: React.FC<DaftarPekerjaanProps> = ({
           return (
             <div
               key={cat.name}
-              className="bg-[#FFFDF8] border border-[#E4DCC8] rounded-xl overflow-hidden shadow-2xs"
+              className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden shadow-xl"
             >
-              {/* Category Header Banner matching Image 1 */}
-              <div className="bg-[#7a1220] text-white px-6 py-3.5 flex justify-between items-center">
+              {/* Category Header Banner with deep blue theme */}
+              <div className="bg-gradient-to-r from-[#003b5c]/90 via-[#005f8e]/90 to-[#003b5c]/90 border-b border-cyan-500/30 text-white px-6 py-4 flex justify-between items-center backdrop-blur-md">
                 <div className="flex items-center gap-2.5">
-                  <span className="material-symbols-outlined text-lg">
+                  <span className="material-symbols-outlined text-xl text-cyan-300">
                     {cat.icon}
                   </span>
-                  <h3 className="font-['Lora',serif] text-[16px] font-bold tracking-tight">
+                  <h3 className="font-['Lora',serif] text-[17px] font-bold tracking-tight text-white">
                     {cat.name}
                   </h3>
                 </div>
-                <div className="bg-[#57000f]/60 px-3 py-1 rounded-full font-['JetBrains_Mono',monospace] text-[10.5px] font-bold text-white tracking-wider">
+                <div className="bg-cyan-950/60 border border-cyan-400/40 px-3.5 py-1 rounded-full font-['JetBrains_Mono',monospace] text-[10.5px] font-bold text-cyan-200 tracking-wider">
                   {completedCatTasks}/{totalCatTasks} selesai
                 </div>
               </div>
 
               {/* Task Items */}
               {categoryTasks.length === 0 ? (
-                <div className="p-6 text-center text-[#6E6A61] text-xs font-['Inter',sans-serif]">
+                <div className="p-6 text-center text-gray-300 text-xs font-['Inter',sans-serif]">
                   Belum ada pekerjaan di bidang ini.
                 </div>
               ) : (
-                <div className="divide-y divide-[#E4DCC8]/60">
+                <div className="divide-y divide-white/10">
                   {categoryTasks.map((task) => (
                     <div
                       key={task.id}
-                      className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#f7f3ea]/60 transition-colors group"
+                      className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/10 transition-colors group"
                     >
                       {/* Left: Title */}
                       <div
                         onClick={() => onOpenTaskDetail(task)}
                         className="flex-1 cursor-pointer pr-4"
                       >
-                        <h4 className="font-['Inter',sans-serif] text-[14px] font-medium text-[#20201D] group-hover:text-[#b62230] transition-colors leading-snug">
+                        <h4 className="font-['Inter',sans-serif] text-[14.5px] font-medium text-white group-hover:text-cyan-300 transition-colors leading-snug">
                           {task.title}
                         </h4>
                       </div>
 
                       {/* Middle: PJ */}
                       <div className="flex items-center gap-4 sm:gap-8 flex-shrink-0">
-                        <div className="font-['JetBrains_Mono',monospace] text-[12px] text-[#6E6A61] min-w-[90px]">
-                          PJ: <span className="text-[#20201D]">{task.pj}</span>
+                        <div className="font-['JetBrains_Mono',monospace] text-[12px] text-gray-400 min-w-[90px]">
+                          PJ: <span className="text-cyan-200 font-semibold">{task.pj || '-'}</span>
                         </div>
 
-                        {/* Right: Interactive Badge Button matching Image 1 */}
+                        {/* Right: Interactive Badge Button matching theme */}
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => onOpenTaskDetail(task)}
                             className={`px-4 py-1.5 rounded-full border-2 border-dashed font-['JetBrains_Mono',monospace] text-[10.5px] font-bold tracking-widest uppercase transition-all cursor-pointer ${
                               task.status === 'SELESAI'
-                                ? 'bg-[#2F6B44]/10 border-[#2F6B44] text-[#2F6B44] hover:bg-[#2F6B44]/20'
+                                ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 hover:bg-emerald-500/30'
                                 : task.status === 'PROSES'
-                                ? 'bg-[#ffddb3]/30 border-[#563700] text-[#392300] hover:bg-[#ffddb3]/60'
-                                : 'bg-[#f1eee5] border-[#8b7170] text-[#6E6A61] hover:bg-[#ece8df]'
+                                ? 'bg-amber-500/20 border-amber-400 text-amber-200 hover:bg-amber-500/30'
+                                : 'bg-white/10 border-gray-400 text-gray-300 hover:bg-white/20'
                             }`}
                           >
                             {task.status}

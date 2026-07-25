@@ -27,12 +27,12 @@ export const SendEmailModal: React.FC<SendEmailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#20201D]/50 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="relative w-full max-w-[500px] bg-[#FFFDF8] rounded-xl shadow-2xl overflow-hidden border border-[#E4DCC8] my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 overflow-y-auto">
+      <div className="relative w-full max-w-[500px] bg-[#002845] rounded-2xl shadow-2xl overflow-hidden border border-cyan-500/40 my-8 text-white font-['Inter',sans-serif]">
         {/* Header Bar */}
-        <div className="bg-[#57000f] text-white px-6 py-4 flex justify-between items-center">
+        <div className="bg-gradient-to-r from-[#003b5c] via-[#005f8e] to-[#003b5c] text-white px-6 py-4 flex justify-between items-center border-b border-white/15">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-white">send</span>
+            <span className="material-symbols-outlined text-cyan-300">send</span>
             <h3 className="font-['Lora',serif] text-[18px] font-bold text-white">
               Kirim Laporan ke Email Pimpinan
             </h3>
@@ -46,9 +46,9 @@ export const SendEmailModal: React.FC<SendEmailModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSend} className="p-6 space-y-4">
+        <form onSubmit={handleSend} className="p-6 space-y-4 bg-black/30">
           <div>
-            <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-[#6E6A61] mb-1">
+            <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
               Alamat Email Tujuan (Pimpinan / Sekretariat)
             </label>
             <input
@@ -56,43 +56,43 @@ export const SendEmailModal: React.FC<SendEmailModalProps> = ({
               required
               value={recipientEmail}
               onChange={(e) => setRecipientEmail(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md font-['Inter',sans-serif] text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230]"
+              className="w-full px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-xl font-['Inter',sans-serif] text-[13.5px] text-white focus:outline-none focus:border-[#00a3e0]"
             />
           </div>
 
           <div>
-            <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-[#6E6A61] mb-1">
+            <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
               Catatan Pengantar Eksekutif
             </label>
             <textarea
               rows={4}
               value={catatanExecutive}
               onChange={(e) => setCatatanExecutive(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#ffffff] border border-[#E4DCC8] rounded-md font-['Inter',sans-serif] text-[13.5px] text-[#20201D] focus:outline-none focus:border-[#b62230]"
+              className="w-full px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-xl font-['Inter',sans-serif] text-[13.5px] text-white focus:outline-none focus:border-[#00a3e0]"
             />
           </div>
 
-          <div className="p-3 bg-[#f1eee5] rounded-md border border-[#E4DCC8] flex items-center gap-2 text-xs font-['Inter',sans-serif] text-[#574141]">
-            <span className="material-symbols-outlined text-[#2F6B44]">
+          <div className="p-3 bg-white/10 rounded-xl border border-white/15 flex items-center gap-2 text-xs font-['Inter',sans-serif] text-cyan-200">
+            <span className="material-symbols-outlined text-cyan-300">
               picture_as_pdf
             </span>
             <span>File lampiran otomatis: Laporan_Digital_SIPATI_Agustus_2026.pdf</span>
           </div>
 
           {/* Form Actions */}
-          <div className="pt-4 border-t border-[#E4DCC8] flex justify-end gap-3">
+          <div className="pt-4 border-t border-white/15 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={sending}
-              className="px-5 py-2.5 bg-[#FFFDF8] border border-[#E4DCC8] hover:bg-[#f1eee5] text-[#20201D] rounded-md font-['Inter',sans-serif] text-[12px] font-semibold transition-colors cursor-pointer"
+              className="px-5 py-2.5 bg-white/10 border border-white/20 hover:bg-white/20 text-white rounded-xl font-['Inter',sans-serif] text-[12px] font-semibold transition-colors cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={sending}
-              className="px-6 py-2.5 bg-[#b62230] hover:bg-[#57000f] text-white rounded-md font-['Inter',sans-serif] text-[12px] font-semibold transition-colors flex items-center gap-2 shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+              className="px-6 py-2.5 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-xl font-['Inter',sans-serif] text-[12px] font-semibold transition-colors flex items-center gap-2 shadow-lg hover:shadow-cyan-500/25 cursor-pointer active:scale-95 disabled:opacity-50"
             >
               {sending ? (
                 <>
