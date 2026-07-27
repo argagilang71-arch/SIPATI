@@ -27,6 +27,7 @@ export interface ArchiveItem {
   fileType: string;
   description?: string;
   fileSize?: string;
+  fileName?: string;
 }
 
 export interface TemplateItem {
@@ -38,6 +39,7 @@ export interface TemplateItem {
   description: string;
   googleDocsUrl?: string;
   backupFile?: string;
+  backupFiles?: string[];
   code?: string;
   sampleText?: string;
 }
@@ -82,3 +84,24 @@ export interface BannerConfig {
 }
 
 export type ViewMode = 'landing' | 'login' | 'ringkasan' | 'pekerjaan' | 'template' | 'arsip' | 'pengaturan' | 'appscript';
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  type?: 'task_completed' | 'task_created' | 'archive_added' | 'template_added' | 'banner' | 'info';
+  targetId?: string;
+}
+
+export interface ActivityLogItem {
+  id: string;
+  user: string;
+  role?: string;
+  action: string;
+  target: string;
+  timestamp: string;
+  type?: 'complete' | 'create' | 'edit' | 'delete' | 'archive' | 'system';
+}
+

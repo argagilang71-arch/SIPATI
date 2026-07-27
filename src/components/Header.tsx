@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getStoredNotifications } from '../utils/activityNotificationStore';
 
 interface HeaderProps {
   onToggleMobileSidebar: () => void;
@@ -6,6 +7,8 @@ interface HeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onOpenHelpModal: () => void;
+  onOpenNotifications?: () => void;
+  onOpenActivityHistory?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -14,6 +17,8 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   onSearchChange,
   onOpenHelpModal,
+  onOpenNotifications,
+  onOpenActivityHistory,
 }) => {
   const defaultAdminAvatar = "https://lh3.googleusercontent.com/aida-public/AB6AXuD0R1bby-MAB_3UmPNiN166iM6w8GN8Br7vcCFJTLw_T7QHb0dGgloCH4DrPbR58NA7vg0xGra_ObnphmVVsiXMjjoulq3Cy2Soh0B66LjFvIvUEXKE-jHiqHum5BMMWgIL5NRE-HcQ9dKAJaW3LBrDIAicr0EWyCh2VE7U9ayXTt9EycbZTG3pA-yiBDGCLa34RqH9noeFA24p9s0aphy44bWmlmdJaXy02lMqu38IlS_LnTmD2DHhEOr_D37BoPRkK3Yg9_BY-SQ";
 
@@ -26,6 +31,10 @@ export const Header: React.FC<HeaderProps> = ({
     }
   });
 
+  const [unreadCount, setUnreadCount] = useState<number>(() => {
+    return getStoredNotifications().filter((n) => !n.read).length;
+  });
+
   useEffect(() => {
     const handleUserUpdated = () => {
       try {
@@ -36,8 +45,16 @@ export const Header: React.FC<HeaderProps> = ({
       }
     };
 
+    const handleNotifUpdated = () => {
+      setUnreadCount(getStoredNotifications().filter((n) => !n.read).length);
+    };
+
     window.addEventListener('sipati_user_updated', handleUserUpdated);
-    return () => window.removeEventListener('sipati_user_updated', handleUserUpdated);
+    window.addEventListener('sipati_notifications_updated', handleNotifUpdated);
+    return () => {
+      window.removeEventListener('sipati_user_updated', handleUserUpdated);
+      window.removeEventListener('sipati_notifications_updated', handleNotifUpdated);
+    };
   }, []);
 
   const userAvatar = currentUser?.foto || currentUser?.avatar || currentUser?.photo || defaultAdminAvatar;
@@ -104,15 +121,19 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div className="flex items-center gap-1 sm:gap-2 border-l border-white/15 pl-3 sm:pl-5">
           <button
-            onClick={() => alert('Tidak ada notifikasi baru.')}
+            onClick={onOpenNotifications}
             className="text-gray-200 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer relative"
-            title="Notifikasi"
+            title="Pusat Notifikasi"
           >
             <span className="material-symbols-outlined text-[22px]">notifications</span>
-            <span className="absolute top-1 right-1 w-2 h-2 bg-cyan-400 rounded-full" />
+            {unreadCount > 0 && (
+              <span className="absolute top-0 right-0 w-4 h-4 bg-rose-500 text-white font-bold text-[9px] rounded-full flex items-center justify-center border border-black/40 animate-pulse">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </button>
           <button
-            onClick={() => alert('Riwayat aktivitas terakhir: 15 Agustus 2026 - Pengesahan SK Panitia HUT RI')}
+            onClick={onOpenActivityHistory}
             className="text-gray-200 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
             title="Riwayat Aktivitas"
           >

@@ -400,11 +400,9 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
   };
 
   const handleDeleteMember = (id: string) => {
-    if (confirm('Apakah Anda yakin ingin menghapus anggota ini dari daftar?')) {
-      const newList = anggotaList.filter((m) => m.id !== id);
-      setAnggotaList(newList);
-      saveTeamMembersToCloud(newList);
-    }
+    const newList = anggotaList.filter((m) => m.id !== id);
+    setAnggotaList(newList);
+    saveTeamMembersToCloud(newList);
   };
 
   const handleSaveMember = (e: React.FormEvent) => {

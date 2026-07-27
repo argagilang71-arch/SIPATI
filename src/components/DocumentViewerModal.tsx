@@ -24,7 +24,11 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
     async function loadBlob() {
       setIsLoading(true);
-      const targetName = item.fileName || item.title;
+      const cleanTitle = item.title.replace(/[\/\\:*?"<>|]/g, '_');
+      const ext = item.fileType ? `.${item.fileType.toLowerCase()}` : '.pdf';
+      const targetName = item.fileName || (
+        item.title.toLowerCase().endsWith(ext) ? item.title : `${cleanTitle}${ext}`
+      );
       const res = await getStoredFileBlob(targetName, {
         title: item.title,
         noSurat: item.noSurat,
@@ -77,7 +81,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               {fileType === 'image' ? 'photo' : fileType === 'pdf' ? 'picture_as_pdf' : 'description'}
             </span>
             <h3 className="font-['Lora',serif] text-base sm:text-lg font-bold text-white truncate max-w-[550px]">
-              Pratinjau Dokumen Direct: {item.title}
+              Pratinjau Dokumen Arsip: {item.title}
             </h3>
           </div>
           <button
@@ -127,7 +131,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
           </button>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => openInGoogleDrive(`${item.title}.${item.fileType}`)}
+              onClick={() => openInGoogleDrive(item.fileName || `${item.title}.${item.fileType}`)}
               className="px-4 py-2 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-xl font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shadow-md"
             >
               <span className="material-symbols-outlined text-sm">cloud</span>

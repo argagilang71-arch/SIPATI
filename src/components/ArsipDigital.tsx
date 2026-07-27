@@ -183,33 +183,46 @@ export const ArsipDigital: React.FC<ArsipDigitalProps> = ({
                   }`}
                 >
                   {/* Dokumen & Identitas */}
-                  <div className="sm:col-span-5 flex items-start gap-4">
-                    <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border ${
+                  <div className="sm:col-span-5 flex items-start gap-3.5">
+                    <button
+                      type="button"
+                      onClick={() => onViewArchive(item)}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border transition-transform cursor-pointer hover:scale-105 active:scale-95 ${
                         isObsolete
                           ? 'bg-white/10 text-gray-400 border-white/20'
-                          : 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30'
+                          : 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40 hover:border-cyan-300'
                       }`}
+                      title="Klik untuk Pratinjau Dokumen Asli"
                     >
-                      <span className="material-symbols-outlined">
+                      <span className="material-symbols-outlined text-xl">
                         {item.fileType === 'pdf'
                           ? 'picture_as_pdf'
                           : item.fileType === 'zip'
                           ? 'folder_zip'
                           : 'description'}
                       </span>
-                    </div>
-                    <div>
+                    </button>
+                    <div className="min-w-0 flex-1">
                       <h4
-                        className={`font-['Inter',sans-serif] font-semibold text-[13.5px] text-white mb-0.5 ${
+                        onClick={() => onViewArchive(item)}
+                        className={`font-['Inter',sans-serif] font-semibold text-[13.5px] text-white hover:text-cyan-300 cursor-pointer transition-colors mb-0.5 truncate ${
                           isObsolete ? 'line-through decoration-white/40' : ''
                         }`}
+                        title={`Pratinjau Dokumen Asli: ${item.title}`}
                       >
                         {item.title}
                       </h4>
-                      <p className="font-['JetBrains_Mono',monospace] text-[11px] text-cyan-300 font-medium">
-                        {item.noSurat}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-['JetBrains_Mono',monospace] text-[11px] text-cyan-300 font-medium">
+                          {item.noSurat}
+                        </span>
+                        {item.fileName && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-300 bg-emerald-950/70 border border-emerald-500/40 px-2 py-0.5 rounded-md truncate max-w-[220px]">
+                            <span className="material-symbols-outlined text-[12px] text-emerald-400">attach_file</span>
+                            <span>{item.fileName}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -242,24 +255,28 @@ export const ArsipDigital: React.FC<ArsipDigitalProps> = ({
                   </div>
 
                   {/* Tindakan */}
-                  <div className="sm:col-span-2 flex sm:justify-end gap-1 mt-3 sm:mt-0">
+                  <div className="sm:col-span-2 flex sm:justify-end items-center gap-1.5 mt-3 sm:mt-0">
                     <button
+                      type="button"
                       onClick={() => onViewArchive(item)}
-                      className="p-2 text-gray-300 hover:text-white hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
-                      title="Lihat Dokumen"
+                      className="px-2.5 py-1.5 bg-[#003b5c] hover:bg-[#005f8e] text-cyan-200 hover:text-white border border-cyan-400/40 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md active:scale-95"
+                      title="Pratinjau Dokumen Asli"
                     >
-                      <span className="material-symbols-outlined text-[20px]">
+                      <span className="material-symbols-outlined text-[16px]">
                         visibility
                       </span>
+                      <span className="hidden xl:inline">Pratinjau</span>
                     </button>
                     <button
+                      type="button"
                       onClick={() => onDownloadArchive(item)}
-                      className="p-2 text-gray-300 hover:text-cyan-300 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
-                      title="Unduh"
+                      className="px-2.5 py-1.5 bg-emerald-700/80 hover:bg-emerald-600 text-emerald-100 hover:text-white border border-emerald-400/40 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md active:scale-95"
+                      title="Unduh File Original"
                     >
-                      <span className="material-symbols-outlined text-[20px]">
+                      <span className="material-symbols-outlined text-[16px]">
                         download
                       </span>
+                      <span className="hidden xl:inline">Unduh</span>
                     </button>
                   </div>
                 </div>

@@ -48,6 +48,9 @@ import { ProposalModal } from './components/ProposalModal';
 import { DocumentViewerModal } from './components/DocumentViewerModal';
 import { SendEmailModal } from './components/SendEmailModal';
 import { HelpModal } from './components/HelpModal';
+import { NotificationCenterModal } from './components/NotificationCenterModal';
+import { ActivityHistoryModal } from './components/ActivityHistoryModal';
+import { addNotification, addActivityLog } from './utils/activityNotificationStore';
 import { PengaturanView } from './components/PengaturanView';
 import { AppsScriptView } from './components/AppsScriptView';
 import { downloadStoredFile } from './utils/fileStorage';
@@ -109,6 +112,8 @@ export default function App() {
   const handleSaveBannerConfig = async (newBanner: BannerConfig) => {
     setBannerConfig(newBanner);
     await saveBannerConfigToCloud(newBanner);
+    addNotification('Banner Dashboard Diperbarui', 'Foto slide banner informasi utama telah diterbitkan.', 'banner');
+    addActivityLog('Memperbarui Banner Slide Dashboard', 'Banner Slide Informasi Utama', 'system');
     showBanner('Pengaturan Banner Dashboard Admin berhasil disimpan & diterbitkan!');
   };
 
@@ -122,6 +127,8 @@ export default function App() {
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [isSendEmailModalOpen, setIsSendEmailModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [notificationBanner, setNotificationBanner] = useState<string | null>(null);
 
   // Helper for floating banner notification
@@ -139,24 +146,26 @@ export default function App() {
   const displayArchives = React.useMemo(() => {
     const map = new Map<string, ArchiveItem>();
     
-    // First, add all existing archives that belong to completed tasks (or standalone uploaded archives)
+    // First, add existing archives that either have no taskId or belong to a completed task
     archives.forEach((a) => {
       if (!a.taskId || completedTaskIds.has(a.taskId)) {
         map.set(a.id, a);
       }
     });
 
-    // Second, ensure every completed task has an archive item entry
+    // Second, ensure every completed task has a corresponding archive item entry with original file attached
     tasks
       .filter((t) => t.status === 'SELESAI')
       .forEach((t) => {
         const existing = Array.from(map.values()).find((a) => a.taskId === t.id);
+        const allFiles = [
+          ...(t.buktiDokumen || []),
+          ...(t.buktiSuratDiterima || []),
+          ...(t.draftPekerjaan || []),
+        ];
+        const mainFile = allFiles[0];
+
         if (!existing) {
-          const allFiles = [
-            ...(t.buktiDokumen || []),
-            ...(t.buktiSuratDiterima || []),
-            ...(t.draftPekerjaan || []),
-          ];
           const hasPdf = allFiles.some((f) => f.toLowerCase().endsWith('.pdf'));
           const hasZip = allFiles.some((f) => f.toLowerCase().endsWith('.zip') || f.toLowerCase().endsWith('.rar'));
           const fileType: 'pdf' | 'doc' | 'zip' = hasPdf ? 'pdf' : hasZip ? 'zip' : 'doc';
@@ -172,6 +181,25 @@ export default function App() {
             fileType,
             description: t.catatan || 'Dokumen naskah dinas hasil pekerjaan yang telah diselesaikan.',
             fileSize: allFiles.length > 0 ? `${(allFiles.length * 1.2 + 0.8).toFixed(1)} MB` : '1.8 MB',
+            fileName: mainFile,
+          });
+        } else {
+          const calcType = mainFile
+            ? mainFile.toLowerCase().endsWith('.pdf')
+              ? 'pdf'
+              : mainFile.toLowerCase().endsWith('.zip') || mainFile.toLowerCase().endsWith('.rar')
+              ? 'zip'
+              : 'doc'
+            : existing.fileType;
+
+          map.set(existing.id, {
+            ...existing,
+            title: t.title,
+            bidang: t.bidang,
+            noSurat: t.noSurat || existing.noSurat,
+            description: t.catatan || existing.description,
+            fileName: mainFile || existing.fileName,
+            fileType: calcType,
           });
         }
       });
@@ -186,20 +214,44 @@ export default function App() {
       ? tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t))
       : [updatedTask, ...tasks];
 
+    // Clean up any archive items whose tasks are no longer completed
+    const nextCompletedIds = new Set(nextTasks.filter((t) => t.status === 'SELESAI').map((t) => t.id));
+    const nextArchives = archives.filter((a) => !a.taskId || nextCompletedIds.has(a.taskId));
+
     setTasks(nextTasks);
+    setArchives(nextArchives);
     saveTasksToCloud(nextTasks);
+    saveArchivesToCloud(nextArchives);
     setActiveTaskForModal(null);
 
     if (updatedTask.status === 'SELESAI') {
+      addNotification(
+        'Pekerjaan Selesai!',
+        `Pekerjaan "${updatedTask.title}" (${updatedTask.bidang}) telah diselesaikan & otomatis terdaftar di Arsip Digital.`,
+        'task_completed',
+        updatedTask.id
+      );
+      addActivityLog('Menyelesaikan Pekerjaan', updatedTask.title, 'complete');
       showBanner(
         `Pekerjaan "${updatedTask.title}" telah diselesaikan & otomatis terdaftar di Arsip Digital (No. Surat: ${updatedTask.noSurat}).`
       );
     } else {
-      showBanner(`Perubahan pekerjaan tersimpan.`);
+      addActivityLog(exists ? 'Memperbarui Pekerjaan' : 'Membuat Pekerjaan Baru', updatedTask.title, exists ? 'edit' : 'create');
+      showBanner(
+        exists && targetTaskWasCompleted(tasks, updatedTask.id)
+          ? `Pekerjaan diperbarui, otomatis dikeluarkan dari Arsip Digital.`
+          : `Perubahan pekerjaan tersimpan.`
+      );
     }
   };
 
+  const targetTaskWasCompleted = (taskList: TaskItem[], id: string) => {
+    const t = taskList.find((item) => item.id === id);
+    return t ? t.status === 'SELESAI' : false;
+  };
+
   const handleDeleteTask = (taskId: string) => {
+    const deletedTask = tasks.find((t) => t.id === taskId);
     const nextTasks = tasks.filter((t) => t.id !== taskId);
     const nextArchives = archives.filter((a) => a.taskId !== taskId);
     setTasks(nextTasks);
@@ -207,6 +259,9 @@ export default function App() {
     saveTasksToCloud(nextTasks);
     saveArchivesToCloud(nextArchives);
     setActiveTaskForModal(null);
+    if (deletedTask) {
+      addActivityLog('Menghapus Pekerjaan', deletedTask.title, 'delete');
+    }
     showBanner('Pekerjaan berhasil dihapus.');
   };
 
@@ -217,15 +272,33 @@ export default function App() {
     const updatedTask: TaskItem = { ...targetTask, status: newStatus };
     const updatedTasks = tasks.map((t) => (t.id === taskId ? updatedTask : t));
 
+    // Auto sync archive state when status changes
+    const nextCompletedIds = new Set(updatedTasks.filter((t) => t.status === 'SELESAI').map((t) => t.id));
+    const nextArchives = archives.filter((a) => !a.taskId || nextCompletedIds.has(a.taskId));
+
     setTasks(updatedTasks);
+    setArchives(nextArchives);
     saveTasksToCloud(updatedTasks);
+    saveArchivesToCloud(nextArchives);
 
     if (newStatus === 'SELESAI') {
+      addNotification(
+        'Pekerjaan Selesai!',
+        `Pekerjaan "${updatedTask.title}" (${updatedTask.bidang}) telah diselesaikan & otomatis diarsipkan dengan No. Surat: ${updatedTask.noSurat}.`,
+        'task_completed',
+        taskId
+      );
+      addActivityLog('Menyelesaikan Pekerjaan', updatedTask.title, 'complete');
       showBanner(
         `Pekerjaan "${updatedTask.title}" selesai & otomatis diarsipkan dengan No. Surat: ${updatedTask.noSurat}.`
       );
     } else {
-      showBanner(`Status pekerjaan diperbarui.`);
+      addActivityLog(`Memperbarui Status (${newStatus})`, updatedTask.title, 'edit');
+      showBanner(
+        targetTask.status === 'SELESAI'
+          ? `Status diubah dari SELESAI, dokumen otomatis dikeluarkan dari Arsip Digital.`
+          : `Status pekerjaan diperbarui.`
+      );
     }
   };
 
@@ -286,6 +359,17 @@ export default function App() {
     showBanner('Template berhasil dihapus.');
   };
 
+  const handleDeleteArchive = (id: string) => {
+    const item = archives.find((a) => a.id === id);
+    const nextArr = archives.filter((a) => a.id !== id);
+    setArchives(nextArr);
+    saveArchivesToCloud(nextArr);
+    if (item) {
+      addActivityLog('Menghapus Berkas Arsip', item.title, 'delete');
+    }
+    showBanner('Dokumen arsip berhasil dihapus.');
+  };
+
   // Proposal submit
   const handleSubmitProposal = (proposal: ProposalItem) => {
     const nextProposals = [proposal, ...proposals];
@@ -311,6 +395,7 @@ export default function App() {
 
     const taskId = `task-arch-${Date.now()}`;
     const noSurat = `0${archives.length + 50}/NK/PAN-RI/VIII/2026`;
+    const fileName = file ? file.name : (title.toLowerCase().endsWith(`.${fileType}`) ? title : `${title}.${fileType}`);
 
     const newArch: ArchiveItem = {
       id: `arch-${Date.now()}`,
@@ -327,6 +412,7 @@ export default function App() {
       fileType,
       description: 'Dokumen arsip terunggah resmi terverifikasi dari pekerjaan yang diselesaikan.',
       fileSize,
+      fileName,
     };
 
     const newTask: TaskItem = {
@@ -365,15 +451,19 @@ export default function App() {
 
   const handleDownloadArchiveFile = (item: ArchiveItem) => {
     const cleanTitle = item.title.replace(/[\/\\:*?"<>|]/g, '_');
-    const fileNameCandidate = item.title.toLowerCase().endsWith(`.${item.fileType.toLowerCase()}`)
-      ? item.title
-      : `${cleanTitle}.${item.fileType}`;
+    const ext = item.fileType ? `.${item.fileType.toLowerCase()}` : '.pdf';
+    const fileNameCandidate = item.fileName || (
+      item.title.toLowerCase().endsWith(ext)
+        ? item.title
+        : `${cleanTitle}${ext}`
+    );
     downloadStoredFile(fileNameCandidate, {
       title: item.title,
       noSurat: item.noSurat,
       bidang: item.bidang,
+      catatan: item.description,
     });
-    showBanner(`Mengunduh berkas salinan: ${fileNameCandidate}`);
+    showBanner(`Mengunduh berkas asli: ${fileNameCandidate}`);
   };
 
   const handleLogout = () => {
@@ -466,6 +556,8 @@ export default function App() {
           searchQuery={globalSearch}
           onSearchChange={setGlobalSearch}
           onOpenHelpModal={() => setIsHelpModalOpen(true)}
+          onOpenNotifications={() => setIsNotifModalOpen(true)}
+          onOpenActivityHistory={() => setIsHistoryModalOpen(true)}
         />
 
         {/* Floating Banner Notification */}
@@ -494,6 +586,7 @@ export default function App() {
                   onOpenTaskDetail={(task) => setActiveTaskForModal(task)}
                   onAddTask={handleCreateNewTask}
                   onUpdateStatus={handleUpdateTaskStatus}
+                  onDeleteTask={handleDeleteTask}
                 />
               )}
 
@@ -626,6 +719,16 @@ export default function App() {
 
       {/* Help / Guide Modal */}
       {isHelpModalOpen && <HelpModal onClose={() => setIsHelpModalOpen(false)} />}
+
+      {/* Notification Center Modal */}
+      {isNotifModalOpen && (
+        <NotificationCenterModal onClose={() => setIsNotifModalOpen(false)} />
+      )}
+
+      {/* Activity History Log Modal */}
+      {isHistoryModalOpen && (
+        <ActivityHistoryModal onClose={() => setIsHistoryModalOpen(false)} />
+      )}
     </div>
   );
 }

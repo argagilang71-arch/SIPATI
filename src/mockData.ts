@@ -1,4 +1,4 @@
-import { TaskItem, ArchiveItem, TemplateItem, ProposalItem } from './types';
+import { TaskItem, ArchiveItem, TemplateItem, ProposalItem, TeamMember } from './types';
 
 export const INITIAL_TASKS: TaskItem[] = [
   // Legalisasi Operasional
@@ -253,4 +253,43 @@ export const INITIAL_PROPOSALS: ProposalItem[] = [
     status: 'Disetujui',
     dateSubmitted: '2026-07-28'
   }
+];
+
+export const DEFAULT_TEAM_MEMBERS: TeamMember[] = [
+  {
+    id: 'm-default-1',
+    nama: 'Asep Suhendar, S.STP',
+    nip: '19850314 200801 1 003',
+    jabatan: 'Subbagian Tata Usaha & Kearsipan',
+    subBagian: 'Subbagian Tata Usaha & Kearsipan',
+    username: 'user',
+    password: 'user123',
+    role: 'Analis Kebijakan',
+    foto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=256',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=256',
+  },
+  {
+    id: 'officer-main',
+    nama: 'Gilang arga',
+    nip: '19780512 200312 1 002',
+    jabatan: 'Analis Kebijakan Ahli Muda / Administrator',
+    subBagian: 'Subbagian Tata Usaha & Kearsipan',
+    username: '197805122003121002',
+    password: 'admin123',
+    role: 'Officer / Administrator',
+    foto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256',
+  },
+  {
+    id: 'm-1',
+    nama: 'Drs. H. Mulyadi, M.Si',
+    nip: '19780512 200312 1 002',
+    jabatan: 'Kepala Bagian Tata Pemerintahan',
+    subBagian: 'Kepala Bagian Tata Pemerintahan',
+    username: 'mulyadi',
+    password: 'admin123',
+    role: 'Officer / Administrator',
+    foto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=256',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=256',
+  },
 ];

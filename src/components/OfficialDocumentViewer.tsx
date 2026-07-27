@@ -31,48 +31,85 @@ interface OfficialDocumentViewerProps {
 // Dedicated PDF Viewer Component
 const PdfViewer: React.FC<{
   blob: Blob | null;
+  fileUrl?: string | null;
+  fileName: string;
   onDownload: () => void;
   onOpenNewTab: () => void;
-}> = ({ onDownload, onOpenNewTab }) => {
+}> = ({ blob, fileUrl, fileName, onDownload, onOpenNewTab }) => {
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (blob) {
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else if (fileUrl) {
+      setPdfUrl(fileUrl);
+    }
+  }, [blob, fileUrl]);
+
   return (
-    <div className="w-full h-full min-h-[460px] flex items-center justify-center p-4 sm:p-8 bg-[#00182b] rounded-2xl border border-cyan-500/30">
-      <div className="max-w-xl w-full flex flex-col items-center text-center space-y-5">
-        {/* PDF Badge Icon */}
-        <div className="w-16 h-16 rounded-2xl bg-[#033957] border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-xl">
-          <span className="material-symbols-outlined text-3xl">picture_as_pdf</span>
+    <div className="w-full h-full min-h-[500px] flex flex-col items-center justify-center p-2 bg-[#00182b] rounded-2xl border border-cyan-500/30 overflow-hidden">
+      {pdfUrl ? (
+        <div className="w-full h-full min-h-[500px] flex flex-col">
+          <iframe
+            src={pdfUrl}
+            title={fileName}
+            className="w-full h-[520px] rounded-xl border border-white/10 bg-slate-900"
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-[#00223d] mt-2 rounded-xl border border-white/10 text-xs">
+            <span className="text-cyan-200 font-mono truncate max-w-[320px]">
+              📄 Dokumen Asli PDF: {fileName}
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onOpenNewTab}
+                className="px-3.5 py-1.5 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-lg font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">open_in_new</span>
+                <span>Buka Tab Baru</span>
+              </button>
+              <button
+                type="button"
+                onClick={onDownload}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">download</span>
+                <span>Unduh File Asli</span>
+              </button>
+            </div>
+          </div>
         </div>
-
-        {/* Heading */}
-        <h3 className="font-['Lora',serif] font-bold text-xl sm:text-2xl text-white tracking-tight">
-          Pratinjau Dokumen Naskah Resmi PDF
-        </h3>
-
-        {/* Subtitle / Description */}
-        <p className="text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
-          Peramban membatasi pratinjau PDF langsung di dalam bingkai aplikasi. Klik tombol di bawah untuk membuka PDF di tab baru atau mengunduh dokumen.
-        </p>
-
-        {/* Action Buttons */}
-        <div className="flex flex-wrap items-center justify-center gap-3.5 pt-3">
-          <button
-            type="button"
-            onClick={onOpenNewTab}
-            className="px-5 py-3 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-2 cursor-pointer active:scale-98"
-          >
-            <span className="material-symbols-outlined text-xl">open_in_new</span>
-            <span>Buka &amp; Baca PDF di Tab Baru</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onDownload}
-            className="px-5 py-3 bg-[#00a05e] hover:bg-[#00874e] text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 cursor-pointer active:scale-98"
-          >
-            <span className="material-symbols-outlined text-xl">download</span>
-            <span>Unduh File PDF</span>
-          </button>
+      ) : (
+        <div className="max-w-xl w-full flex flex-col items-center text-center space-y-4 p-6">
+          <div className="w-16 h-16 rounded-2xl bg-[#033957] border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-xl">
+            <span className="material-symbols-outlined text-3xl">picture_as_pdf</span>
+          </div>
+          <h3 className="font-['Lora',serif] font-bold text-xl text-white">
+            Dokumen Asli PDF: {fileName}
+          </h3>
+          <p className="text-xs text-slate-300">
+            Peramban membatasi pratinjau PDF langsung. Klik tombol untuk membuka atau mengunduh.
+          </p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onOpenNewTab}
+              className="px-5 py-2.5 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-xl text-xs font-bold transition shadow"
+            >
+              Buka Tab Baru
+            </button>
+            <button
+              type="button"
+              onClick={onDownload}
+              className="px-5 py-2.5 bg-[#00a05e] hover:bg-[#00874e] text-white rounded-xl text-xs font-bold transition shadow"
+            >
+              Unduh File PDF
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -348,12 +385,18 @@ export const OfficialDocumentViewer: React.FC<OfficialDocumentViewerProps> = ({
               </div>
             ) : isPdf ? (
               /* Dedicated PDF Viewer with New Tab Stream */
-              <PdfViewer blob={rawBlob} onDownload={onDownload} onOpenNewTab={handleOpenNewTab} />
-            ) : isImage && data.fileUrl ? (
+              <PdfViewer
+                blob={rawBlob}
+                fileUrl={data.fileUrl}
+                fileName={data.fileName || data.title}
+                onDownload={onDownload}
+                onOpenNewTab={handleOpenNewTab}
+              />
+            ) : isImage ? (
               /* Image Native Viewer */
               <div className="p-4 flex flex-col items-center justify-center min-h-[480px]">
                 <img
-                  src={data.fileUrl}
+                  src={rawBlob ? URL.createObjectURL(rawBlob) : data.fileUrl || ''}
                   alt={data.fileName || data.title}
                   className="max-h-[520px] w-auto max-w-full object-contain rounded-lg shadow-2xl border border-white/20"
                 />

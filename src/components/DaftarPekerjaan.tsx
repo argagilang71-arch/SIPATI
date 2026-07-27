@@ -6,6 +6,7 @@ interface DaftarPekerjaanProps {
   onOpenTaskDetail: (task: TaskItem) => void;
   onAddTask: () => void;
   onUpdateStatus: (taskId: string, newStatus: TaskStatus) => void;
+  onDeleteTask?: (taskId: string) => void;
 }
 
 export const DaftarPekerjaan: React.FC<DaftarPekerjaanProps> = ({
@@ -13,6 +14,7 @@ export const DaftarPekerjaan: React.FC<DaftarPekerjaanProps> = ({
   onOpenTaskDetail,
   onAddTask,
   onUpdateStatus,
+  onDeleteTask,
 }) => {
   const [selectedBidang, setSelectedBidang] = useState<string>('Semua');
   const [selectedStatus, setSelectedStatus] = useState<string>('Semua');
@@ -195,6 +197,21 @@ export const DaftarPekerjaan: React.FC<DaftarPekerjaanProps> = ({
                           >
                             {task.status}
                           </button>
+                          {onDeleteTask && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteTask(task.id);
+                              }}
+                              className="p-1.5 text-rose-300 hover:text-white hover:bg-rose-900/60 rounded-lg transition-colors cursor-pointer"
+                              title="Hapus Pekerjaan"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                delete
+                              </span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

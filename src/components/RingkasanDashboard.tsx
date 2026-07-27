@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -14,9 +14,11 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { TaskItem, ArchiveItem, BannerConfig } from '../types';
+import { TaskItem, ArchiveItem, BannerConfig, TeamMember } from '../types';
 import { DashboardBanner } from './DashboardBanner';
 import { BannerEditModal } from './BannerEditModal';
+import { DEFAULT_TEAM_MEMBERS } from '../mockData';
+import { loadTeamMembersFromCloud, subscribeTeamMembersCloud } from '../utils/firebaseSync';
 
 interface RingkasanDashboardProps {
   tasks?: TaskItem[];
@@ -54,7 +56,7 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
   }
 
   // Compute live statistics from tasks
-  const totalTasks = tasks.length || 10;
+  const totalTasks = tasks.length || 0;
   const selesaiTasks = tasks.filter((t) => t.status === 'SELESAI').length;
   const prosesTasks = tasks.filter((t) => t.status === 'PROSES').length;
   const belumTasks = tasks.filter((t) => t.status === 'BELUM').length;
@@ -68,14 +70,31 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
     0
   );
 
-  const percentSelesai = totalTasks > 0 ? Math.round((selesaiTasks / totalTasks) * 100) : 0;
+  // Helper for precise percentage formatting (e.g., 9.1% instead of rounding 9.09% to 9%)
+  const formatPercent = (count: number, total: number): string => {
+    if (!total || total <= 0) return '0%';
+    const pct = (count / total) * 100;
+    if (Number.isInteger(pct)) {
+      return `${pct}%`;
+    }
+    return `${pct.toFixed(1)}%`;
+  };
+
+  const percentSelesaiStr = formatPercent(selesaiTasks, totalTasks);
+  const percentProgresTotalStr = formatPercent(selesaiTasks + prosesTasks, totalTasks);
 
   // Data for Status Donut Chart with modern executive palette
-  const statusPieData = [
-    { name: 'Selesai (Disahkan)', value: selesaiTasks || 1, color: '#10b981', gradientId: 'pieSelesai' },
-    { name: 'Dalam Proses', value: prosesTasks || 4, color: '#f59e0b', gradientId: 'pieProses' },
-    { name: 'Belum Dimulai', value: belumTasks || 5, color: '#f43f5e', gradientId: 'pieBelum' },
-  ];
+  const statusPieData = totalTasks > 0
+    ? [
+        { name: 'Selesai (Disahkan)', value: selesaiTasks, color: '#10b981', gradientId: 'pieSelesai' },
+        { name: 'Dalam Proses', value: prosesTasks, color: '#f59e0b', gradientId: 'pieProses' },
+        { name: 'Belum Dimulai', value: belumTasks, color: '#f43f5e', gradientId: 'pieBelum' },
+      ]
+    : [
+        { name: 'Selesai (Disahkan)', value: 1, color: '#10b981', gradientId: 'pieSelesai' },
+        { name: 'Dalam Proses', value: 4, color: '#f59e0b', gradientId: 'pieProses' },
+        { name: 'Belum Dimulai', value: 5, color: '#f43f5e', gradientId: 'pieBelum' },
+      ];
 
   // Monthly trend data
   const trendData = [
@@ -111,11 +130,61 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
         { bidang: 'Logistik', Selesai: 0, Proses: 1, Total: 2 },
       ];
 
-  const avatarList = [
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuClPf_SYvijtKCMAma7NuPbBr_8fmCn8dFCgIddjToVidEJxvyTdsC7TtT5eS8j21zE_gMPYJ44fVGZTWvKky6kHUzutZzGK0X9tmmksgrsCExDw4YM_Qw49WNJGIZVTUtK6Guv8xF7U1KWbZJ6aScWkZhLJyWcAIC4cBpglWq4kOx4zoZWsFHif6oX410C3MAruGfC0s0XjSFk1TlQ-csMmJPOt-v1A3HFbzWSe9KkBTJ8iK-YmzrV5If1s_FbmZ6NLitAt3YxYj8',
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuAg6dT6a46e2ono4Y-8JgcARquGClhQX3gVIo3vReZ6uGWf_vW28q-qM5M2LSVKptXyz6tYDwHq3JHRU2Vjy4upsGkvWyAtX5a4YGmeGnLAnLQWodm8Yi1usCk660l9nchuf0aWO1WEHWeL8ulNH6d0Mj7FGnufVqgto7rMxav-wUguTXjVEn3ScODku1nCwOrgrzzO-dXuJ9fjCAcy6PJU1WnkvN-bIqBRG1nEBNYqkYN5kHsVIOt-ib3n1TN5lLL6SYBxzDHLqFE',
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuA3Ih-tvmajxtUcLH8Npr_GlpCfA1LCev9VIxNDfYTVpJHvH4X_J_sGGS32heLBBemLi5lmCD-DgLAQJ2e2i05Cm_4VDmEexXRtS1vzu33SELXjAMiMFJ_T4YmNH3jrStOWZSDaF6c90w0zLZeBsnH1dVHjNqxyzBTlnjbT_vdSDZadzbASyOdvxLQ7agzd4dCXzKP8CzoJxxsJJzHPw5OhwQ9DQUGfebWNU1ENIgM1u_qXvSXSD3fqfJ0Tx6gp_JbcFqc2QTnQjYQ',
-  ];
+  // Dynamic state for team members & accounts
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => {
+    try {
+      const saved = localStorage.getItem('sipati_team_members');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return DEFAULT_TEAM_MEMBERS;
+  });
+
+  useEffect(() => {
+    const updateMembersFromStorage = () => {
+      try {
+        const saved = localStorage.getItem('sipati_team_members');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setTeamMembers(parsed);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    // Load from Cloud Firestore
+    loadTeamMembersFromCloud().then((cloudMembers) => {
+      if (cloudMembers && cloudMembers.length > 0) {
+        setTeamMembers(cloudMembers);
+      }
+    });
+
+    // Realtime Cloud listener
+    const unsubscribeCloud = subscribeTeamMembersCloud((cloudMembers) => {
+      if (cloudMembers && cloudMembers.length > 0) {
+        setTeamMembers(cloudMembers);
+      }
+    });
+
+    // Listen to local window events when accounts are added/modified in Pengaturan
+    window.addEventListener('sipati_team_members_updated', updateMembersFromStorage);
+    window.addEventListener('storage', updateMembersFromStorage);
+
+    return () => {
+      unsubscribeCloud();
+      window.removeEventListener('sipati_team_members_updated', updateMembersFromStorage);
+      window.removeEventListener('storage', updateMembersFromStorage);
+    };
+  }, []);
 
   return (
     <div className="space-y-6 pb-12 font-['Inter',sans-serif] text-white">
@@ -182,8 +251,8 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
                 <span className="font-['Lora',serif] text-2xl font-bold text-white">
                   {totalTasks}
                 </span>
-                <span className="text-[10px] font-semibold text-emerald-400">
-                  +100%
+                <span className="text-[10px] font-semibold text-cyan-300">
+                  {percentProgresTotalStr} Aktif
                 </span>
               </div>
               <p className="text-[10px] text-gray-400 mt-1">
@@ -203,7 +272,7 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
               </div>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="font-['Lora',serif] text-2xl font-bold text-white">
-                  {percentSelesai}%
+                  {percentSelesaiStr}
                 </span>
                 <span className="text-[10px] text-emerald-300 font-bold">
                   ({selesaiTasks} Selesai)
@@ -212,7 +281,7 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
               <div className="w-full bg-white/20 h-1.5 rounded-full mt-2 overflow-hidden">
                 <div
                   className="bg-emerald-400 h-full rounded-full transition-all duration-1000"
-                  style={{ width: `${Math.max(percentSelesai, 5)}%` }}
+                  style={{ width: `${totalTasks > 0 ? (selesaiTasks / totalTasks) * 100 : 0}%` }}
                 />
               </div>
             </div>
@@ -238,7 +307,7 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
               </p>
             </div>
 
-            {/* Stat Card 4 */}
+            {/* Stat Card 4: Tim Personel */}
             <div className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl p-4 shadow-xl">
               <div className="flex justify-between items-start">
                 <span className="font-mono text-[10px] font-bold tracking-[0.1em] text-gray-400 uppercase">
@@ -250,33 +319,54 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
               </div>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="font-['Lora',serif] text-2xl font-bold text-white">
-                  342
+                  {teamMembers.length}
                 </span>
-                <span className="text-[10px] text-gray-300 font-medium">Orang</span>
+                <span className="text-[10px] text-cyan-300 font-semibold">Orang</span>
               </div>
-              <div className="flex -space-x-1.5 mt-1.5">
-                {avatarList.map((url, i) => (
+              <div className="flex -space-x-1.5 mt-2 items-center">
+                {teamMembers.slice(0, 4).map((member, i) => {
+                  const photo = member.foto || member.avatar || member.photo;
+                  const initials = (member.nama || 'U')
+                    .split(' ')
+                    .filter(Boolean)
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase();
+
+                  return (
+                    <div
+                      key={member.id || member.username || i}
+                      title={`${member.nama} (${member.role || 'Anggota Tim'})`}
+                      className="w-6 h-6 rounded-full border border-cyan-400/50 bg-slate-800 flex items-center justify-center overflow-hidden shadow-xs hover:scale-110 transition-transform cursor-pointer"
+                    >
+                      {photo ? (
+                        <img src={photo} alt={member.nama} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[9px] font-bold text-cyan-300 font-mono">{initials}</span>
+                      )}
+                    </div>
+                  );
+                })}
+                {teamMembers.length > 4 && (
                   <div
-                    key={i}
-                    className="w-5 h-5 rounded-full border border-white/40 bg-slate-800 overflow-hidden"
+                    title={`${teamMembers.length - 4} anggota tim lainnya`}
+                    className="w-6 h-6 rounded-full border border-cyan-400/50 bg-cyan-950/80 flex items-center justify-center text-[9px] font-bold text-cyan-300 font-mono shadow-xs"
                   >
-                    <img src={url} alt="User" className="w-full h-full object-cover" />
+                    +{teamMembers.length - 4}
                   </div>
-                ))}
-                <div className="w-5 h-5 rounded-full border border-white/40 bg-white/20 flex items-center justify-center text-[8px] font-bold text-white">
-                  +15
-                </div>
+                )}
               </div>
             </div>
           </div>
         </div>
 
         {/* RIGHT COLUMN: Pie / Donut Chart Status Pekerjaan */}
-        <div className="lg:col-span-5 bg-gradient-to-b from-[#0e172a]/90 via-[#0b1222]/90 to-[#070d18]/90 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-5 shadow-2xl flex flex-col justify-between h-full relative overflow-hidden">
+        <div className="lg:col-span-5 bg-gradient-to-b from-[#0e172a]/90 via-[#0b1222]/90 to-[#070d18]/90 backdrop-blur-xl border border-cyan-500/30 rounded-2xl p-5 shadow-2xl flex flex-col justify-between h-full relative">
           {/* Subtle ambient background glow */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none overflow-hidden"></div>
 
-          <div className="border-b border-white/15 pb-3 flex items-center justify-between">
+          <div className="border-b border-white/15 pb-3 flex items-center justify-between relative z-10">
             <div>
               <span className="font-mono text-[10px] font-bold text-cyan-300 uppercase tracking-widest flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -288,12 +378,12 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
             </div>
             <div className="text-right">
               <span className="font-mono text-[11px] font-bold text-emerald-300 bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-400/30">
-                {percentSelesai}% Selesai
+                {percentSelesaiStr} Selesai
               </span>
             </div>
           </div>
 
-          <div className="h-56 w-full relative flex items-center justify-center my-1">
+          <div className="h-56 w-full relative flex items-center justify-center my-1 z-10">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -320,9 +410,9 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
                       const data = payload[0];
                       const total = totalTasks || 1;
                       const val = Number(data.value) || 0;
-                      const pct = Math.round((val / total) * 100);
+                      const pctStr = formatPercent(val, total);
                       return (
-                        <div className="bg-[#081225] border-2 border-cyan-400 p-3 rounded-xl shadow-2xl font-['Inter',sans-serif] text-white space-y-1 z-[9999] min-w-[160px]">
+                        <div className="bg-[#081225] border-2 border-cyan-400 p-3.5 rounded-xl shadow-2xl font-['Inter',sans-serif] text-white space-y-1.5 z-[9999] min-w-[190px] whitespace-nowrap">
                           <div className="flex items-center gap-2 border-b border-white/10 pb-1.5">
                             <span
                               className="w-3 h-3 rounded-full shrink-0 shadow-sm"
@@ -334,7 +424,7 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
                             Status: <strong className="text-white text-sm font-bold">{val} Berkas</strong>
                           </div>
                           <div className="text-[11px] text-gray-300 font-mono">
-                            Proporsi: <span className="text-emerald-400 font-bold">{pct}%</span> dari total
+                            Proporsi: <span className="text-emerald-400 font-bold">{pctStr}</span> dari total
                           </div>
                         </div>
                       );
@@ -359,18 +449,18 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
           </div>
 
           {/* Interactive Breakdown Cards */}
-          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-white/15 text-xs font-['Inter',sans-serif]">
+          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-white/15 text-xs font-['Inter',sans-serif] relative z-10">
             <div className="p-2.5 bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-500/40 rounded-xl transition shadow-md">
               <div className="flex items-center justify-between text-emerald-300 mb-1">
                 <span className="text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1">
                   <span className="material-symbols-outlined text-xs">check_circle</span>
                   Selesai
                 </span>
-                <span className="text-[10px] font-mono font-bold">{totalTasks > 0 ? Math.round((selesaiTasks/totalTasks)*100) : 0}%</span>
+                <span className="text-[10px] font-mono font-bold">{formatPercent(selesaiTasks, totalTasks)}</span>
               </div>
               <div className="text-base font-extrabold text-white">{selesaiTasks} <span className="text-[10px] text-gray-400 font-normal">berkas</span></div>
               <div className="w-full bg-black/40 h-1 rounded-full mt-1.5 overflow-hidden">
-                <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${totalTasks > 0 ? Math.round((selesaiTasks/totalTasks)*100) : 0}%` }}></div>
+                <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${totalTasks > 0 ? (selesaiTasks / totalTasks) * 100 : 0}%` }}></div>
               </div>
             </div>
 
@@ -380,11 +470,11 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
                   <span className="material-symbols-outlined text-xs">hourglass_top</span>
                   Proses
                 </span>
-                <span className="text-[10px] font-mono font-bold">{totalTasks > 0 ? Math.round((prosesTasks/totalTasks)*100) : 0}%</span>
+                <span className="text-[10px] font-mono font-bold">{formatPercent(prosesTasks, totalTasks)}</span>
               </div>
               <div className="text-base font-extrabold text-white">{prosesTasks} <span className="text-[10px] text-gray-400 font-normal">berkas</span></div>
               <div className="w-full bg-black/40 h-1 rounded-full mt-1.5 overflow-hidden">
-                <div className="bg-amber-400 h-full rounded-full" style={{ width: `${totalTasks > 0 ? Math.round((prosesTasks/totalTasks)*100) : 0}%` }}></div>
+                <div className="bg-amber-400 h-full rounded-full" style={{ width: `${totalTasks > 0 ? (prosesTasks / totalTasks) * 100 : 0}%` }}></div>
               </div>
             </div>
 
@@ -394,11 +484,11 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
                   <span className="material-symbols-outlined text-xs">pending</span>
                   Belum
                 </span>
-                <span className="text-[10px] font-mono font-bold">{totalTasks > 0 ? Math.round((belumTasks/totalTasks)*100) : 0}%</span>
+                <span className="text-[10px] font-mono font-bold">{formatPercent(belumTasks, totalTasks)}</span>
               </div>
               <div className="text-base font-extrabold text-white">{belumTasks} <span className="text-[10px] text-gray-400 font-normal">berkas</span></div>
               <div className="w-full bg-black/40 h-1 rounded-full mt-1.5 overflow-hidden">
-                <div className="bg-rose-400 h-full rounded-full" style={{ width: `${totalTasks > 0 ? Math.round((belumTasks/totalTasks)*100) : 0}%` }}></div>
+                <div className="bg-rose-400 h-full rounded-full" style={{ width: `${totalTasks > 0 ? (belumTasks / totalTasks) * 100 : 0}%` }}></div>
               </div>
             </div>
           </div>

@@ -40,7 +40,12 @@ export const DEFAULT_BANNER_CONFIG: BannerConfig = {
   type: 'info',
   linkUrl: '',
   linkText: 'Buka Panduan Penggunaan',
-  imageUrl: '',
+  imageUrl: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&q=80&w=1200',
+  images: [
+    'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&q=80&w=1200',
+    'https://images.unsplash.com/photo-1577495508048-b635879837f1?auto=format&fit=crop&q=80&w=1200',
+    'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&q=80&w=1200',
+  ],
   dismissible: true,
   updatedAt: new Date().toISOString(),
   updatedBy: 'Admin SIPATI',
