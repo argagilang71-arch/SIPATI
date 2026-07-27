@@ -262,6 +262,10 @@ export async function listGoogleDriveFiles(
       },
     });
 
+    if (res.status === 401 || res.status === 403) {
+      return getLocalDriveFilesList();
+    }
+
     if (!res.ok) {
       throw new Error(`Google Drive API response ${res.status}`);
     }

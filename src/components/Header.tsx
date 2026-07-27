@@ -40,7 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
     return () => window.removeEventListener('sipati_user_updated', handleUserUpdated);
   }, []);
 
-  const userAvatar = currentUser?.avatar || currentUser?.photo || defaultAdminAvatar;
+  const userAvatar = currentUser?.foto || currentUser?.avatar || currentUser?.photo || defaultAdminAvatar;
 
   return (
     <header className="h-16 fixed top-0 right-0 md:left-[250px] left-0 z-20 bg-black/40 backdrop-blur-md border-b border-white/15 text-white flex justify-between items-center px-4 sm:px-[34px] w-full md:w-[calc(100%-250px)]">
@@ -120,36 +120,26 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {/* Current User Info & Profile thumbnail */}
-          {(() => {
-            let currentUser: any = null;
-            try {
-              const saved = localStorage.getItem('sipati_current_user');
-              if (saved) currentUser = JSON.parse(saved);
-            } catch (e) {}
-
-            return (
-              <div className="flex items-center gap-2.5 ml-1">
-                <div className="hidden sm:flex flex-col text-right">
-                  <span className="text-[12px] font-bold text-white truncate max-w-[150px]">
-                    {currentUser?.nama || 'Drs. H. Mulyadi, M.Si'}
-                  </span>
-                  <span className="text-[10px] text-cyan-300 font-medium">
-                    {currentUser?.role || 'Officer / Administrator'}
-                  </span>
-                </div>
-                <div
-                  className="w-8 h-8 rounded-full bg-slate-800 overflow-hidden border border-white/30 cursor-pointer shrink-0 shadow-sm"
-                  title={currentUser?.nama || 'Pengguna SIPATI'}
-                >
-                  <img
-                    src={userAvatar}
-                    alt="User Profile Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-            );
-          })()}
+          <div className="flex items-center gap-2.5 ml-1">
+            <div className="hidden sm:flex flex-col text-right">
+              <span className="text-[12px] font-bold text-white truncate max-w-[150px]">
+                {currentUser?.nama || 'Drs. H. Mulyadi, M.Si'}
+              </span>
+              <span className="text-[10px] text-cyan-300 font-medium">
+                {currentUser?.role || 'Officer / Administrator'}
+              </span>
+            </div>
+            <div
+              className="w-8 h-8 rounded-full bg-slate-800 overflow-hidden border border-white/30 cursor-pointer shrink-0 shadow-sm"
+              title={currentUser?.nama || 'Pengguna SIPATI'}
+            >
+              <img
+                src={userAvatar}
+                alt="User Profile Avatar"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </header>

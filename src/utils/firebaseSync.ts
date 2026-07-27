@@ -2,6 +2,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { TeamMember, TaskItem, ArchiveItem, TemplateItem, ProposalItem, BannerConfig } from '../types';
+import { safeSetLocalStorage } from './storageUtils';
 
 // Initialize Firebase App safely with custom databaseId support
 let dbInstance: any = null;
@@ -14,6 +15,15 @@ try {
 }
 
 export const db = dbInstance;
+
+/**
+ * Recursively sanitizes objects before sending to Firestore, converting `undefined` values to `null`
+ * or omitting them. This prevents Firestore "Unsupported field value: undefined" runtime errors.
+ */
+function cleanForFirestore<T>(data: T): T {
+  if (data === undefined) return null as any;
+  return JSON.parse(JSON.stringify(data, (key, value) => (value === undefined ? null : value)));
+}
 
 const CONFIG_DOC_PATH = ['sipati_config', 'team_members'] as const;
 const SETTINGS_DOC_PATH = ['sipati_config', 'settings'] as const;
@@ -41,25 +51,25 @@ export const DEFAULT_BANNER_CONFIG: BannerConfig = {
  */
 export async function saveBannerConfigToCloud(banner: BannerConfig): Promise<boolean> {
   try {
-    localStorage.setItem('sipati_dashboard_banner', JSON.stringify(banner));
+    safeSetLocalStorage('sipati_dashboard_banner', JSON.stringify(banner));
     window.dispatchEvent(new Event('sipati_banner_updated'));
   } catch (e) {
     console.warn('LocalStorage error saving banner:', e);
   }
 
-  if (!db) return false;
+  if (!db) return true;
 
   try {
     const docRef = doc(db, BANNER_DOC_PATH[0], BANNER_DOC_PATH[1]);
-    await setDoc(docRef, {
+    await setDoc(docRef, cleanForFirestore({
       ...banner,
       updatedAt: new Date().toISOString(),
-    });
+    }));
     console.log('✅ Dashboard Banner synced to Cloud Firestore.');
     return true;
   } catch (err) {
-    console.warn('Note: Could not sync banner to Cloud Firestore:', err);
-    return false;
+    console.warn('Note: Could not sync banner to Cloud Firestore (fallback to LocalStorage):', err);
+    return true;
   }
 }
 
@@ -125,26 +135,24 @@ export function subscribeBannerConfigCloud(onUpdate: (banner: BannerConfig) => v
  */
 export async function saveTeamMembersToCloud(members: TeamMember[]): Promise<boolean> {
   // Always update LocalStorage immediately for instant local UI responsiveness
-  try {
-    localStorage.setItem('sipati_team_members', JSON.stringify(members));
-  } catch (err) {
-    console.warn('LocalStorage error:', err);
-  }
+  safeSetLocalStorage('sipati_team_members', JSON.stringify(members));
 
   if (!db) return false;
 
   // Sync to Firebase Firestore for cross-device & shared link support
   try {
     const docRef = doc(db, CONFIG_DOC_PATH[0], CONFIG_DOC_PATH[1]);
-    await setDoc(docRef, {
-      members,
-      updatedAt: new Date().toISOString(),
-    });
+    await setDoc(
+      docRef,
+      cleanForFirestore({
+        members,
+        updatedAt: new Date().toISOString(),
+      })
+    );
     console.log('✅ Team members synced to Cloud Firestore successfully.');
     return true;
   } catch (err) {
-    // Graceful error logging without breaking app execution
-    console.warn('Note: Cloud Firestore not initialized yet. Data saved locally on this browser.');
+    console.warn('Note: Could not sync team members to Cloud Firestore:', err);
     return false;
   }
 }
@@ -153,6 +161,16 @@ export async function saveTeamMembersToCloud(members: TeamMember[]): Promise<boo
  * Loads team members list from Firebase Firestore (Cloud) with fallback to LocalStorage.
  */
 export async function loadTeamMembersFromCloud(): Promise<TeamMember[]> {
+  let localMembers: TeamMember[] = [];
+  try {
+    const saved = localStorage.getItem('sipati_team_members');
+    if (saved) {
+      localMembers = JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error('Error parsing local team members:', e);
+  }
+
   if (db) {
     try {
       const docRef = doc(db, CONFIG_DOC_PATH[0], CONFIG_DOC_PATH[1]);
@@ -160,26 +178,40 @@ export async function loadTeamMembersFromCloud(): Promise<TeamMember[]> {
       if (snap.exists() && snap.data()?.members) {
         const cloudMembers = snap.data().members as TeamMember[];
         if (Array.isArray(cloudMembers) && cloudMembers.length > 0) {
-          localStorage.setItem('sipati_team_members', JSON.stringify(cloudMembers));
-          return cloudMembers;
+          // Merge cloudMembers with localMembers giving priority to local updated photos & credentials
+          const merged = [...cloudMembers];
+          localMembers.forEach((lm) => {
+            const idx = merged.findIndex(
+              (cm) =>
+                (cm.id && lm.id && cm.id === lm.id) ||
+                (cm.username && lm.username && cm.username.toLowerCase().replace(/\s+/g, '') === lm.username.toLowerCase().replace(/\s+/g, '')) ||
+                (cm.nip && lm.nip && cm.nip.replace(/\s+/g, '') === lm.nip.replace(/\s+/g, ''))
+            );
+            if (idx >= 0) {
+              merged[idx] = {
+                ...merged[idx],
+                ...lm,
+                foto: lm.foto || lm.avatar || merged[idx].foto || merged[idx].avatar,
+                avatar: lm.avatar || lm.foto || merged[idx].avatar || merged[idx].foto,
+              };
+            } else {
+              merged.push(lm);
+            }
+          });
+          safeSetLocalStorage('sipati_team_members', JSON.stringify(merged));
+          // Note: Do NOT trigger automatic write to Firestore during load to prevent quota exhaustion
+          return merged;
         }
+      } else if (localMembers.length > 0) {
+        // Seed cloud if cloud doc does not exist yet
+        await saveTeamMembersToCloud(localMembers);
       }
     } catch (err) {
-      // Offline or database not created yet, fall back silently to local storage
+      // Offline or database not created yet, fall back silently
     }
   }
 
-  // Fallback to local storage if Firestore fails or is offline
-  try {
-    const saved = localStorage.getItem('sipati_team_members');
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch (e) {
-    console.error('Error parsing local team members:', e);
-  }
-
-  return [];
+  return localMembers;
 }
 
 /**
@@ -196,7 +228,7 @@ export function subscribeTeamMembersCloud(onUpdate: (members: TeamMember[]) => v
         if (snap.exists() && snap.data()?.members) {
           const members = snap.data().members as TeamMember[];
           if (Array.isArray(members)) {
-            localStorage.setItem('sipati_team_members', JSON.stringify(members));
+            safeSetLocalStorage('sipati_team_members', JSON.stringify(members));
             onUpdate(members);
           }
         }
@@ -246,10 +278,10 @@ export async function saveSettingsToCloud(settings: {
     const docRef = doc(db, SETTINGS_DOC_PATH[0], SETTINGS_DOC_PATH[1]);
     await setDoc(
       docRef,
-      {
+      cleanForFirestore({
         ...settings,
         updatedAt: new Date().toISOString(),
-      },
+      }),
       { merge: true }
     );
     return true;
@@ -329,7 +361,7 @@ export async function saveTasksToCloud(tasks: TaskItem[]): Promise<boolean> {
   if (!db) return false;
   try {
     const docRef = doc(db, TASKS_DOC_PATH[0], TASKS_DOC_PATH[1]);
-    await setDoc(docRef, { tasks, updatedAt: new Date().toISOString() });
+    await setDoc(docRef, cleanForFirestore({ tasks, updatedAt: new Date().toISOString() }));
     return true;
   } catch (err) {
     return false;
@@ -394,7 +426,7 @@ export async function saveArchivesToCloud(archives: ArchiveItem[]): Promise<bool
   if (!db) return false;
   try {
     const docRef = doc(db, ARCHIVES_DOC_PATH[0], ARCHIVES_DOC_PATH[1]);
-    await setDoc(docRef, { archives, updatedAt: new Date().toISOString() });
+    await setDoc(docRef, cleanForFirestore({ archives, updatedAt: new Date().toISOString() }));
     return true;
   } catch (err) {
     return false;
@@ -459,7 +491,7 @@ export async function saveTemplatesToCloud(templates: TemplateItem[]): Promise<b
   if (!db) return false;
   try {
     const docRef = doc(db, TEMPLATES_DOC_PATH[0], TEMPLATES_DOC_PATH[1]);
-    await setDoc(docRef, { templates, updatedAt: new Date().toISOString() });
+    await setDoc(docRef, cleanForFirestore({ templates, updatedAt: new Date().toISOString() }));
     return true;
   } catch (err) {
     return false;
@@ -524,7 +556,7 @@ export async function saveProposalsToCloud(proposals: ProposalItem[]): Promise<b
   if (!db) return false;
   try {
     const docRef = doc(db, PROPOSALS_DOC_PATH[0], PROPOSALS_DOC_PATH[1]);
-    await setDoc(docRef, { proposals, updatedAt: new Date().toISOString() });
+    await setDoc(docRef, cleanForFirestore({ proposals, updatedAt: new Date().toISOString() }));
     return true;
   } catch (err) {
     return false;
@@ -627,27 +659,27 @@ export async function saveFileToCloud(
     const chunkCount = Math.ceil(totalLength / CHUNK_SIZE);
 
     if (chunkCount <= 1) {
-      await setDoc(docRef, {
+      await setDoc(docRef, cleanForFirestore({
         fileName,
         mimeType: mimeType || blob.type || 'application/octet-stream',
         size: blob.size,
         base64Data: base64,
         chunkCount: 1,
         uploadedAt: new Date().toISOString(),
-      });
+      }));
     } else {
       const chunks: string[] = [];
       for (let i = 0; i < chunkCount; i++) {
         chunks.push(base64.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
       }
-      await setDoc(docRef, {
+      await setDoc(docRef, cleanForFirestore({
         fileName,
         mimeType: mimeType || blob.type || 'application/octet-stream',
         size: blob.size,
         chunks,
         chunkCount,
         uploadedAt: new Date().toISOString(),
-      });
+      }));
     }
     console.log(`✅ Binary file "${fileName}" stored in Cloud Firestore.`);
     return true;

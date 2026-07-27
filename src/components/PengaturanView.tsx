@@ -14,6 +14,7 @@ import {
 } from '../utils/firebaseSync';
 import { TeamMember, BannerConfig } from '../types';
 import { BannerEditModal } from './BannerEditModal';
+import { safeSetLocalStorage, compressProfileImage } from '../utils/storageUtils';
 
 interface PengaturanViewProps {
   requireLogin?: boolean;
@@ -57,6 +58,10 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
   // Current logged in user state & profile photo
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userPhoto, setUserPhoto] = useState<string>('');
+  const [profileNama, setProfileNama] = useState('');
+  const [profileUsername, setProfileUsername] = useState('');
+  const [profilePassword, setProfilePassword] = useState('');
+  const [showProfilePassword, setShowProfilePassword] = useState(false);
 
   const PRESET_AVATARS = [
     "https://lh3.googleusercontent.com/aida-public/AB6AXuD0R1bby-MAB_3UmPNiN166iM6w8GN8Br7vcCFJTLw_T7QHb0dGgloCH4DrPbR58NA7vg0xGra_ObnphmVVsiXMjjoulq3Cy2Soh0B66LjFvIvUEXKE-jHiqHum5BMMWgIL5NRE-HcQ9dKAJaW3LBrDIAicr0EWyCh2VE7U9ayXTt9EycbZTG3pA-yiBDGCLa34RqH9noeFA24p9s0aphy44bWmlmdJaXy02lMqu38IlS_LnTmD2DHhEOr_D37BoPRkK3Yg9_BY-SQ",
@@ -75,28 +80,132 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
       if (savedUser) {
         const parsed = JSON.parse(savedUser);
         setCurrentUser(parsed);
-        setUserPhoto(parsed.avatar || parsed.photo || PRESET_AVATARS[0]);
+        let photo = parsed.foto || parsed.avatar || parsed.photo;
+
+        if (!photo) {
+          const savedMembersStr = localStorage.getItem('sipati_team_members');
+          if (savedMembersStr) {
+            const savedMembers: TeamMember[] = JSON.parse(savedMembersStr);
+            const m = savedMembers.find(
+              (mem) =>
+                (mem.id && parsed.id && mem.id === parsed.id) ||
+                (mem.nip && parsed.nip && mem.nip.replace(/\s+/g, '') === parsed.nip.replace(/\s+/g, '')) ||
+                (mem.username && parsed.username && mem.username.toLowerCase() === parsed.username.toLowerCase())
+            );
+            if (m) {
+              photo = m.foto || m.avatar || m.photo;
+            }
+          }
+        }
+
+        if (!photo) {
+          photo = PRESET_AVATARS[0];
+        }
+
+        setUserPhoto(photo);
+        setProfileNama(parsed.nama || '');
+        setProfileUsername(parsed.username || '');
+        setProfilePassword(parsed.password || '');
       }
     } catch (e) {
       console.error(e);
     }
   }, []);
 
-  const handleSaveUserProfilePhoto = (photoUrl: string) => {
+  const handleSaveUserProfile = async (photoUrlToUse?: string) => {
     try {
-      setUserPhoto(photoUrl);
-      const savedUser = localStorage.getItem('sipati_current_user');
-      const userObj = savedUser ? JSON.parse(savedUser) : { nama: 'Pengguna SIPATI' };
-      userObj.avatar = photoUrl;
-      userObj.photo = photoUrl;
-      localStorage.setItem('sipati_current_user', JSON.stringify(userObj));
-      setCurrentUser(userObj);
+      const rawPhoto = photoUrlToUse || userPhoto || PRESET_AVATARS[0];
+      // Automatically compress profile photo to small size (~15KB) to prevent LocalStorage/Firestore quota exceeded errors
+      const finalPhoto = await compressProfileImage(rawPhoto);
+      setUserPhoto(finalPhoto);
+
+      const savedUserStr = localStorage.getItem('sipati_current_user');
+      const userObj = savedUserStr ? JSON.parse(savedUserStr) : {};
+
+      const newNama = profileNama.trim() || userObj.nama || 'Pengguna SIPATI';
+      const newUsername = profileUsername.trim().toLowerCase().replace(/\s+/g, '') || userObj.username || 'user';
+      const newPassword = profilePassword.trim() || userObj.password || 'user123';
+
+      const origUsername = userObj.originalUsername || userObj.username;
+      const updatedUserObj = {
+        ...userObj,
+        nama: newNama,
+        username: newUsername,
+        password: newPassword,
+        foto: finalPhoto,
+        avatar: finalPhoto,
+        photo: finalPhoto,
+        originalUsername: origUsername,
+      };
+
+      // 1. Update current user session safely in localStorage
+      safeSetLocalStorage('sipati_current_user', JSON.stringify(updatedUserObj));
+      setCurrentUser(updatedUserObj);
+
+      // 2. Sync to team_members list for ALL matching accounts so Admin sees updates and re-login works
+      let updatedList = [...anggotaList];
+      let foundMatch = false;
+
+      updatedList = updatedList.map((m) => {
+        const isMatch =
+          (userObj.id && m.id && m.id === userObj.id) ||
+          (userObj.nip && m.nip && m.nip.replace(/\s+/g, '') === userObj.nip.replace(/\s+/g, '')) ||
+          (m.username && m.username.toLowerCase() === (userObj.username || '').toLowerCase()) ||
+          (origUsername && m.username && m.username.toLowerCase() === origUsername.toLowerCase());
+
+        if (isMatch) {
+          foundMatch = true;
+          return {
+            ...m,
+            nama: newNama,
+            username: newUsername,
+            password: newPassword,
+            foto: finalPhoto,
+            avatar: finalPhoto,
+            photo: finalPhoto,
+            originalUsername: origUsername,
+          };
+        }
+        return m;
+      });
+
+      if (!foundMatch) {
+        const newMember: TeamMember = {
+          id: userObj.id || `m-${Date.now()}`,
+          nama: newNama,
+          nip: userObj.nip || '19800101 200501 1 001',
+          jabatan: userObj.jabatan || 'Staf / Analis Kebijakan',
+          subBagian: userObj.subBagian || 'Analis Kebijakan',
+          username: newUsername,
+          password: newPassword,
+          role: userObj.role || 'Analis Kebijakan',
+          foto: finalPhoto,
+          avatar: finalPhoto,
+          photo: finalPhoto,
+          originalUsername: origUsername,
+        };
+        updatedList.push(newMember);
+      }
+
+      setAnggotaList(updatedList);
+      await saveTeamMembersToCloud(updatedList);
+
+      // 3. Dispatch user & team members update events for live UI reactivity
       window.dispatchEvent(new Event('sipati_user_updated'));
+      window.dispatchEvent(new Event('sipati_team_members_updated'));
+
       setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      setTimeout(() => setSaved(false), 3500);
+      alert('✅ PROFIL BERHASIL DIPERBARUI!\n\nNama, Username, Password, dan Foto Profil Anda telah tersimpan secara permanen. Admin dapat langsung melihat pembaruan ini di Daftar Anggota Tim dan kredensial baru ini berlaku untuk login selanjutnya.');
     } catch (e) {
-      console.error(e);
+      console.error('Error saving user profile:', e);
+      alert('Terjadi kesalahan saat menyimpan profil.');
     }
+  };
+
+  const handleSaveUserProfilePhoto = (photoUrl: string) => {
+    setUserPhoto(photoUrl);
+    handleSaveUserProfile(photoUrl);
   };
 
   // Determine if the current logged-in user is an Officer / Administrator
@@ -112,7 +221,7 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
   // Daftar Anggota, NIP, Username & Password
   const [anggotaList, setAnggotaList] = useState<TeamMember[]>([
     {
-      id: 'm-gilang',
+      id: 'acc-gilang',
       nama: 'Gilang Ariesta Arga, S.IP',
       nip: '199403162016091001',
       jabatan: 'Kepala Bagian Tata Pemerintahan',
@@ -122,7 +231,7 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
       role: 'Officer / Administrator',
     },
     {
-      id: 'm-erik',
+      id: 'acc-erik',
       nama: 'Singgih Erik Rudiana, S.STP, M.A.P',
       nip: '19860920 200904 2 005',
       jabatan: 'Analis Kebijakan Ahli Muda',
@@ -132,7 +241,7 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
       role: 'Analis Kebijakan',
     },
     {
-      id: 'm-faisal',
+      id: 'acc-faisal',
       nama: 'Faisal Hadi Jaya, S.E, M.Si',
       nip: '196812111996031007',
       jabatan: 'Analis Kebijakan Ahli Pertama',
@@ -142,12 +251,22 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
       role: 'Analis Kebijakan',
     },
     {
+      id: 'officer-main',
+      nama: 'Gilang arga',
+      nip: '19780512 200312 1 002',
+      jabatan: 'Analis Kebijakan Ahli Muda / Administrator',
+      subBagian: 'Subbagian Tata Usaha & Kearsipan',
+      username: '197805122003121002',
+      password: 'admin123',
+      role: 'Officer / Administrator',
+    },
+    {
       id: 'm-1',
       nama: 'Drs. H. Mulyadi, M.Si',
       nip: '19780512 200312 1 002',
       jabatan: 'Kepala Bagian Tata Pemerintahan',
       subBagian: 'Kepala Bagian Tata Pemerintahan',
-      username: '197805122003121002',
+      username: 'mulyadi',
       password: 'admin123',
       role: 'Officer / Administrator',
     },
@@ -168,10 +287,44 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
 
   // Load persisted settings and members from cloud on mount
   useEffect(() => {
-    // Initial load from cloud
-    loadTeamMembersFromCloud().then((members) => {
-      if (members && members.length > 0) {
-        setAnggotaList(members);
+    // 1. Initial load from LocalStorage immediately for instant UI
+    try {
+      const savedLocal = localStorage.getItem('sipati_team_members');
+      if (savedLocal) {
+        const parsedLocal = JSON.parse(savedLocal);
+        if (Array.isArray(parsedLocal) && parsedLocal.length > 0) {
+          setAnggotaList(parsedLocal);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    // 2. Load from cloud and merge cleanly without overwriting custom photos
+    loadTeamMembersFromCloud().then((cloudMembers) => {
+      if (cloudMembers && cloudMembers.length > 0) {
+        setAnggotaList((prevList) => {
+          const merged = [...prevList];
+          cloudMembers.forEach((cm) => {
+            const idx = merged.findIndex(
+              (m) =>
+                (m.id && cm.id && m.id === cm.id) ||
+                (m.username && cm.username && m.username.toLowerCase().replace(/\s+/g, '') === cm.username.toLowerCase().replace(/\s+/g, '')) ||
+                (m.nip && cm.nip && m.nip.replace(/\s+/g, '') === cm.nip.replace(/\s+/g, ''))
+            );
+            if (idx >= 0) {
+              merged[idx] = {
+                ...cm,
+                ...merged[idx],
+                foto: merged[idx].foto || merged[idx].avatar || cm.foto || cm.avatar,
+                avatar: merged[idx].avatar || merged[idx].foto || cm.avatar || cm.foto,
+              };
+            } else {
+              merged.push(cm);
+            }
+          });
+          return merged;
+        });
       }
     });
 
@@ -281,36 +434,41 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
 
   const handleSaveAll = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isOfficer) {
-      alert('Akses Ditolak!\n\nPengubahan nama penanggung jawab, instansi, dan pengaturan sistem hanya dapat dilakukan oleh Admin / Officer.');
-      return;
-    }
     try {
-      // Save local admin settings
-      localStorage.setItem('sipati_nama_admin', namaAdmin);
-      localStorage.setItem('sipati_nip_admin', nipAdmin);
-      localStorage.setItem('sipati_nama_instansi', namaInstansi);
-      if (logoUrl) {
-        localStorage.setItem('sipati_logo_url', logoUrl);
-      } else {
-        localStorage.removeItem('sipati_logo_url');
-      }
-      window.dispatchEvent(new Event('sipati_logo_updated'));
+      // 1. Save user profile (Nama, Username, Password, Foto Profil)
+      await handleSaveUserProfile();
 
-      saveDriveConfig(driveConfig);
-      await saveTeamMembersToCloud(anggotaList);
-      await saveSettingsToCloud({
-        namaInstansi,
-        namaAdmin,
-        nipAdmin,
-        emailNotif,
-        autoArchive,
-        logoUrl,
-      });
+      // 2. Save Notification & Auto Archive Settings
+      localStorage.setItem('sipati_email_notif', emailNotif);
+      localStorage.setItem('sipati_auto_archive', JSON.stringify(autoArchive));
+
+      // 3. If Admin / Officer, save global system & Google Drive settings
+      if (isOfficer) {
+        localStorage.setItem('sipati_nama_admin', namaAdmin);
+        localStorage.setItem('sipati_nip_admin', nipAdmin);
+        localStorage.setItem('sipati_nama_instansi', namaInstansi);
+        if (logoUrl) {
+          localStorage.setItem('sipati_logo_url', logoUrl);
+        } else {
+          localStorage.removeItem('sipati_logo_url');
+        }
+        window.dispatchEvent(new Event('sipati_logo_updated'));
+
+        saveDriveConfig(driveConfig);
+        await saveTeamMembersToCloud(anggotaList);
+        await saveSettingsToCloud({
+          namaInstansi,
+          namaAdmin,
+          nipAdmin,
+          emailNotif,
+          autoArchive,
+          logoUrl,
+        });
+      }
 
       setSaved(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      alert('✅ BERHASIL DISIMPAN!\n\nSeluruh konfigurasi instansi, ID Google Drive, serta Username & Password pengguna telah berhasil disimpan ke Cloud Database & Penyimpanan Lokal.');
+      alert('✅ PERUBAHAN BERHASIL DISIMPAN!\n\nSeluruh data profil, foto profil, username, password, serta pengaturan Anda telah berhasil disimpan.');
       setTimeout(() => setSaved(false), 5000);
     } catch (err) {
       console.error('Gagal menyimpan pengaturan:', err);
@@ -350,52 +508,55 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
         </div>
       )}
 
-      {/* PENGATURAN FOTO PROFIL (BISA DIATUR OLEH PENGGUNA MANAPUN & ADMIN) */}
-      <div className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl p-6 shadow-2xl space-y-4">
+      {/* PENGATURAN PROFIL & KREDENSIAL AKUN SAYA (BISA DIATUR OLEH SETIAP PENGGUNA) */}
+      <div className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl p-6 shadow-2xl space-y-5">
         <div className="flex items-center justify-between border-b border-white/15 pb-3">
           <div>
             <h3 className="font-['Lora',serif] text-[16px] font-bold text-white flex items-center gap-2">
               <span className="material-symbols-outlined text-sm text-cyan-300">account_circle</span>
-              Pengaturan Foto Profil &amp; Identitas Akun Saya
+              Pengaturan Profil &amp; Kredensial Akun Saya
             </h3>
             <p className="text-xs text-gray-300 mt-0.5">
-              Atur dan pasang foto profil Anda sendiri agar tampil di bilah atas aplikasi (Header) dan catatan aktivitas.
+              Atur nama lengkap, username login, password, serta foto profil Anda. Pembaruan akan tersimpan permanen di cloud database.
             </p>
           </div>
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
-            Akses Bebas (Setiap Pengguna)
+          <span className="px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 shrink-0">
+            Profil Saya
           </span>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-6 pt-1">
-          {/* Avatar Preview */}
-          <div className="flex flex-col items-center gap-2 bg-white/10 p-4 rounded-2xl border border-white/15 shrink-0">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pt-1">
+          {/* Left Column: Avatar Box & Upload */}
+          <div className="md:col-span-4 flex flex-col items-center gap-3 bg-white/10 p-5 rounded-2xl border border-white/15">
             <span className="text-[11px] font-bold text-cyan-300 uppercase tracking-wider">Foto Profil Aktif</span>
-            <div className="w-20 h-20 rounded-full bg-slate-800 border-2 border-cyan-400/60 overflow-hidden shadow-lg">
+            <div className="w-24 h-24 rounded-full bg-slate-800 border-2 border-cyan-400 overflow-hidden shadow-xl relative group">
               <img
                 src={userPhoto || PRESET_AVATARS[0]}
                 alt="User Profile"
                 className="w-full h-full object-cover"
               />
             </div>
-            <span className="text-[10px] text-gray-300 font-medium">
-              {currentUser?.nama || 'Pengguna SIPATI'}
-            </span>
-          </div>
 
-          {/* Controls: Preset or Upload */}
-          <div className="flex-1 space-y-4 w-full">
-            <div>
-              <label className="block font-semibold text-[11px] uppercase text-cyan-300 mb-2">
-                Pilih Preset Foto Profil / Avatar
+            <div className="text-center">
+              <div className="text-xs font-bold text-white">{profileNama || 'Pengguna SIPATI'}</div>
+              <div className="text-[10px] text-cyan-300 font-mono">@{profileUsername || 'username'}</div>
+            </div>
+
+            {/* Avatar presets */}
+            <div className="w-full pt-2 border-t border-white/10">
+              <label className="block text-center font-semibold text-[10px] uppercase text-gray-300 mb-2">
+                Pilih Preset Avatar
               </label>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center justify-center gap-2">
                 {PRESET_AVATARS.map((url, idx) => (
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => handleSaveUserProfilePhoto(url)}
-                    className={`w-10 h-10 rounded-full overflow-hidden border-2 cursor-pointer transition-all ${
+                    onClick={() => {
+                      setUserPhoto(url);
+                      handleSaveUserProfile(url);
+                    }}
+                    className={`w-8 h-8 rounded-full overflow-hidden border cursor-pointer transition-all ${
                       userPhoto === url ? 'border-cyan-400 ring-2 ring-cyan-400/50 scale-110' : 'border-white/20 opacity-70 hover:opacity-100'
                     }`}
                   >
@@ -405,37 +566,107 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
               </div>
             </div>
 
-            <div className="pt-2 border-t border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <label className="px-4 py-2 bg-[#00a3e0] hover:bg-[#008bc2] text-white text-xs font-bold rounded-xl cursor-pointer transition flex items-center gap-2 shadow-lg hover:shadow-cyan-500/25 active:scale-95">
-                <span className="material-symbols-outlined text-base">upload</span>
-                <span>Unggah Foto Dari Perangkat...</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      if (file.size > 3 * 1024 * 1024) {
-                        alert('Ukuran foto profil terlalu besar. Maksimal 3MB.');
-                        return;
+            {/* Upload custom avatar */}
+            <label className="w-full mt-1 px-3 py-2 bg-white/15 hover:bg-white/25 text-white text-xs font-bold rounded-xl cursor-pointer transition flex items-center justify-center gap-1.5 border border-white/20 shadow">
+              <span className="material-symbols-outlined text-sm">upload</span>
+              <span>Unggah Foto Baru...</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    try {
+                      const compressed = await compressProfileImage(file, 256, 256, 0.82);
+                      if (compressed) {
+                        setUserPhoto(compressed);
+                        await handleSaveUserProfile(compressed);
                       }
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        const result = event.target?.result as string;
-                        if (result) {
-                          handleSaveUserProfilePhoto(result);
-                        }
-                      };
-                      reader.readAsDataURL(file);
+                    } catch (err) {
+                      console.error('Error processing uploaded image:', err);
                     }
-                  }}
-                />
-              </label>
+                  }
+                }}
+              />
+            </label>
+          </div>
 
-              <span className="text-[11px] text-gray-400 italic">
-                Foto profil langsung diperbarui secara otomatis.
+          {/* Right Column: Name, Username, and Password Form */}
+          <div className="md:col-span-8 space-y-4">
+            <div>
+              <label className="block font-semibold text-[11px] uppercase text-cyan-300 mb-1">
+                Nama Lengkap &amp; Gelar
+              </label>
+              <input
+                type="text"
+                value={profileNama}
+                onChange={(e) => setProfileNama(e.target.value)}
+                placeholder="Contoh: Drs. H. Mulyadi, M.Si"
+                className="w-full px-3.5 py-2.5 bg-white/10 border border-white/25 rounded-xl font-['Inter',sans-serif] text-[13.5px] text-white placeholder-gray-400 focus:outline-none focus:border-[#00a3e0] transition"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-semibold text-[11px] uppercase text-cyan-300 mb-1">
+                  Username Login Saya
+                </label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">
+                    alternate_email
+                  </span>
+                  <input
+                    type="text"
+                    value={profileUsername}
+                    onChange={(e) => setProfileUsername(e.target.value)}
+                    placeholder="username.login"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-white/10 border border-white/25 rounded-xl font-['JetBrains_Mono',monospace] text-[13px] text-white placeholder-gray-400 focus:outline-none focus:border-[#00a3e0] transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[11px] uppercase text-cyan-300 mb-1">
+                  Kata Sandi (Password) Baru
+                </label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">
+                    lock
+                  </span>
+                  <input
+                    type={showProfilePassword ? 'text' : 'password'}
+                    value={profilePassword}
+                    onChange={(e) => setProfilePassword(e.target.value)}
+                    placeholder="Masukkan Password Baru"
+                    className="w-full pl-9 pr-9 py-2.5 bg-white/10 border border-white/25 rounded-xl font-['JetBrains_Mono',monospace] text-[13px] text-white placeholder-gray-400 focus:outline-none focus:border-[#00a3e0] transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowProfilePassword(!showProfilePassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white cursor-pointer"
+                    title="Tampilkan / Sembunyikan Password"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      {showProfilePassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/10">
+              <span className="text-[11px] text-gray-300 italic">
+                Pembaruan username &amp; password langsung dapat digunakan pada sesi login berikutnya.
               </span>
+              <button
+                type="button"
+                onClick={() => handleSaveUserProfile()}
+                className="px-5 py-2.5 bg-[#00a3e0] hover:bg-[#008bc2] text-white font-bold text-xs rounded-xl shadow-lg hover:shadow-cyan-500/25 transition flex items-center gap-2 cursor-pointer active:scale-95 shrink-0"
+              >
+                <span className="material-symbols-outlined text-base">save</span>
+                <span>Simpan Perubahan Profil Saya</span>
+              </button>
             </div>
           </div>
         </div>
@@ -503,108 +734,104 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
           </div>
         </div>
 
-        {/* Pengaturan Logo Official SIPATI Instansi */}
-        <div className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl p-6 shadow-2xl space-y-4">
-          <div className="flex items-center justify-between border-b border-white/15 pb-3">
-            <div>
-              <h3 className="font-['Lora',serif] text-[16px] font-bold text-white flex items-center gap-2">
-                <span className="material-symbols-outlined text-sm text-cyan-300">badge</span>
-                Pengaturan Logo Official SIPATI Instansi
-              </h3>
-              <p className="text-xs text-gray-300 mt-0.5">
-                Unggah file gambar logo instansi Anda (.PNG, .JPG, .SVG, .WEBP) atau masukkan URL logo khusus agar tampil berseragam di seluruh aplikasi.
-              </p>
-            </div>
-            {!isOfficer && <span className="text-amber-400 font-semibold text-xs">(Khusus Admin)</span>}
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-6 pt-1">
-            {/* Live Logo Preview Box */}
-            <div className="flex flex-col items-center gap-2 bg-white/10 p-4 rounded-2xl border border-white/15 shrink-0">
-              <span className="text-[11px] font-bold text-cyan-300 uppercase tracking-wider">Preview Logo Aktif</span>
-              <div className="w-20 h-20 bg-slate-900 border border-white/20 rounded-xl flex items-center justify-center p-2 shadow-md">
-                <SipatiLogo size={64} customLogoUrl={logoUrl} />
-              </div>
-              <span className="text-[10px] text-gray-300 font-mono">
-                {logoUrl ? 'Logo Custom Aktif' : 'Logo Default Emblem'}
-              </span>
-            </div>
-
-            {/* Controls for upload or URL */}
-            <div className="flex-1 space-y-3.5 w-full">
+        {/* Pengaturan Logo Official SIPATI Instansi (KHUSUS ADMIN) */}
+        {isOfficer && (
+          <div className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/15 pb-3">
               <div>
-                <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
-                  Unggah File Gambar Logo (PNG / JPG / SVG / WEBP)
-                </label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <label className={`px-4 py-2 bg-[#00a3e0] hover:bg-[#008bc2] text-white text-xs font-semibold rounded-xl cursor-pointer transition flex items-center gap-1.5 shadow-md ${!isOfficer ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <span className="material-symbols-outlined text-base">upload_file</span>
-                    <span>Pilih File Gambar Logo...</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={!isOfficer}
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.size > 2 * 1024 * 1024) {
-                            alert('Ukuran file logo terlalu besar. Maksimal 2MB.');
-                            return;
-                          }
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            const result = event.target?.result as string;
-                            if (result) {
-                              setLogoUrl(result);
-                            }
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
+                <h3 className="font-['Lora',serif] text-[16px] font-bold text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-sm text-cyan-300">badge</span>
+                  Pengaturan Logo Official SIPATI Instansi
+                </h3>
+                <p className="text-xs text-gray-300 mt-0.5">
+                  Unggah file gambar logo instansi Anda (.PNG, .JPG, .SVG, .WEBP) atau masukkan URL logo khusus agar tampil berseragam di seluruh aplikasi.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-6 pt-1">
+              {/* Live Logo Preview Box */}
+              <div className="flex flex-col items-center gap-2 bg-white/10 p-4 rounded-2xl border border-white/15 shrink-0">
+                <span className="text-[11px] font-bold text-cyan-300 uppercase tracking-wider">Preview Logo Aktif</span>
+                <div className="w-20 h-20 bg-slate-900 border border-white/20 rounded-xl flex items-center justify-center p-2 shadow-md">
+                  <SipatiLogo size={64} customLogoUrl={logoUrl} />
+                </div>
+                <span className="text-[10px] text-gray-300 font-mono">
+                  {logoUrl ? 'Logo Custom Aktif' : 'Logo Default Emblem'}
+                </span>
+              </div>
+
+              {/* Controls for upload or URL */}
+              <div className="flex-1 space-y-3.5 w-full">
+                <div>
+                  <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
+                    Unggah File Gambar Logo (PNG / JPG / SVG / WEBP)
                   </label>
-                  {logoUrl && (
-                    <button
-                      type="button"
-                      disabled={!isOfficer}
-                      onClick={() => {
-                        setLogoUrl('');
-                        localStorage.removeItem('sipati_logo_url');
-                        window.dispatchEvent(new Event('sipati_logo_updated'));
-                      }}
-                      className="px-3 py-2 bg-rose-950/60 text-rose-200 hover:bg-rose-900 border border-rose-400/40 text-xs font-semibold rounded-xl transition flex items-center gap-1 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">restart_alt</span>
-                      <span>Gunakan Logo Default</span>
-                    </button>
-                  )}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="px-4 py-2 bg-[#00a3e0] hover:bg-[#008bc2] text-white text-xs font-semibold rounded-xl cursor-pointer transition flex items-center gap-1.5 shadow-md">
+                      <span className="material-symbols-outlined text-base">upload_file</span>
+                      <span>Pilih File Gambar Logo...</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 2 * 1024 * 1024) {
+                              alert('Ukuran file logo terlalu besar. Maksimal 2MB.');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const result = event.target?.result as string;
+                              if (result) {
+                                setLogoUrl(result);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                    {logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLogoUrl('');
+                          localStorage.removeItem('sipati_logo_url');
+                          window.dispatchEvent(new Event('sipati_logo_updated'));
+                        }}
+                        className="px-3 py-2 bg-rose-950/60 text-rose-200 hover:bg-rose-900 border border-rose-400/40 text-xs font-semibold rounded-xl transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-sm">restart_alt</span>
+                        <span>Gunakan Logo Default</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
-                  Atau Masukkan Tautan (URL) Gambar Logo
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">
-                    link
-                  </span>
-                  <input
-                    type="url"
-                    disabled={!isOfficer}
-                    value={logoUrl}
-                    onChange={(e) => setLogoUrl(e.target.value)}
-                    placeholder="https://contoh.com/logo-satuan-kerja.png"
-                    className={`w-full pl-9 pr-3.5 py-2 border rounded-xl font-['Inter',sans-serif] text-[13px] text-white focus:outline-none focus:border-[#00a3e0] ${
-                      !isOfficer ? 'bg-white/5 border-white/10 cursor-not-allowed opacity-80' : 'bg-white/10 border-white/20'
-                    }`}
-                  />
+                <div>
+                  <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
+                    Atau Masukkan Tautan (URL) Gambar Logo
+                  </label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">
+                      link
+                    </span>
+                    <input
+                      type="url"
+                      value={logoUrl}
+                      onChange={(e) => setLogoUrl(e.target.value)}
+                      placeholder="https://contoh.com/logo-satuan-kerja.png"
+                      className="w-full pl-9 pr-3.5 py-2 border rounded-xl font-['Inter',sans-serif] text-[13px] text-white bg-white/10 border-white/20 focus:outline-none focus:border-[#00a3e0]"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* PENGATURAN BANNER DASHBOARD (KHUSUS ADMIN / OFFICER) */}
         <div className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl p-6 shadow-2xl space-y-4">
@@ -644,6 +871,13 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
               <div className="pt-2 border-t border-white/10 space-y-1">
                 <div className="font-['Lora',serif] font-bold text-sm text-white">{banner.title}</div>
                 <div className="text-xs text-gray-300 line-clamp-2">{banner.message}</div>
+                {banner.imageUrl && (
+                  <div className="pt-2">
+                    <div className="max-w-[220px] max-h-20 rounded-lg bg-white/95 border border-white/20 p-1 flex items-center justify-center">
+                      <img src={banner.imageUrl} alt="Banner Preview" className="max-w-full max-h-16 w-auto h-auto object-contain rounded" />
+                    </div>
+                  </div>
+                )}
                 {banner.linkUrl && (
                   <div className="text-[11px] font-mono text-cyan-400 pt-1">
                     Tautan: {banner.linkUrl} ({banner.linkText || 'Buka Link'})
@@ -714,8 +948,19 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
                   {anggotaList.map((member) => (
                     <tr key={member.id} className="hover:bg-white/10 transition">
                       <td className="p-3">
-                        <div className="font-semibold text-white">{member.nama}</div>
-                        <div className="font-mono text-[11px] text-cyan-300">NIP: {member.nip}</div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-slate-800 border border-cyan-400/50 overflow-hidden shrink-0 shadow">
+                            <img
+                              src={member.foto || member.avatar || PRESET_AVATARS[0]}
+                              alt={member.nama}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-white">{member.nama}</div>
+                            <div className="font-mono text-[11px] text-cyan-300">NIP: {member.nip}</div>
+                          </div>
+                        </div>
                       </td>
                       <td className="p-3">
                         <div className="text-gray-200 font-medium">{member.jabatan}</div>
@@ -827,115 +1072,119 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
           </div>
         )}
 
-        {/* INTEGRASI EKOSISTEM GOOGLE DRIVE API & CONFIGURATION */}
-        <GoogleDriveManager />
+        {/* INTEGRASI EKOSISTEM GOOGLE DRIVE API & CONFIGURATION (KHUSUS ADMIN) */}
+        {isOfficer && (
+          <>
+            <GoogleDriveManager />
 
-        <div className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl p-6 shadow-2xl space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/15 pb-3">
-            <div>
-              <h3 className="font-['Lora',serif] text-[16px] font-bold text-white flex items-center gap-2">
-                <span className="material-symbols-outlined text-sm text-cyan-300">folder_managed</span>
-                Target Folder Google Drive &amp; Parameter Sinkronisasi
-              </h3>
-              <p className="text-xs text-gray-300 mt-0.5">
-                Atur ID Folder Google Drive target tempat seluruh dokumen yang diunggah akan disimpan &amp; disinkronkan secara otomatis.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
-                ID Folder Google Drive Utama (Google Drive Folder ID)
-              </label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base">
-                  folder_special
-                </span>
-                <input
-                  type="text"
-                  required
-                  value={driveConfig.folderId}
-                  onChange={(e) => {
-                    const newConfig = { ...driveConfig, folderId: e.target.value };
-                    setDriveConfigState(newConfig);
-                    saveDriveConfig(newConfig);
-                  }}
-                  placeholder="Contoh: 1A2b3C4d5E6f7G8h9I0j-SIPATI_KubuRaya"
-                  className="w-full pl-10 pr-3.5 py-2.5 bg-white/10 border border-white/20 rounded-xl font-mono text-[13px] text-white focus:outline-none focus:border-[#00a3e0]"
-                />
+            <div className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl p-6 shadow-2xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/15 pb-3">
+                <div>
+                  <h3 className="font-['Lora',serif] text-[16px] font-bold text-white flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm text-cyan-300">folder_managed</span>
+                    Target Folder Google Drive &amp; Parameter Sinkronisasi
+                  </h3>
+                  <p className="text-xs text-gray-300 mt-0.5">
+                    Atur ID Folder Google Drive target tempat seluruh dokumen yang diunggah akan disimpan &amp; disinkronkan secara otomatis.
+                  </p>
+                </div>
               </div>
-              <p className="text-[11px] text-gray-300 mt-1">
-                Dapatkan ID folder dari URL Google Drive Anda (karakter setelah <code>/folders/</code>).
-              </p>
-            </div>
 
-            <div className="sm:col-span-2">
-              <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
-                Tautan / Link Shared Folder Google Drive
-              </label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base">
-                  link
-                </span>
-                <input
-                  type="text"
-                  value={driveConfig.sharedFolderUrl}
-                  onChange={(e) => {
-                    const newConfig = { ...driveConfig, sharedFolderUrl: e.target.value };
-                    setDriveConfigState(newConfig);
-                    saveDriveConfig(newConfig);
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
+                    ID Folder Google Drive Utama (Google Drive Folder ID)
+                  </label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base">
+                      folder_special
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={driveConfig.folderId}
+                      onChange={(e) => {
+                        const newConfig = { ...driveConfig, folderId: e.target.value };
+                        setDriveConfigState(newConfig);
+                        saveDriveConfig(newConfig);
+                      }}
+                      placeholder="Contoh: 1A2b3C4d5E6f7G8h9I0j-SIPATI_KubuRaya"
+                      className="w-full pl-10 pr-3.5 py-2.5 bg-white/10 border border-white/20 rounded-xl font-mono text-[13px] text-white focus:outline-none focus:border-[#00a3e0]"
+                    />
+                  </div>
+                  <p className="text-[11px] text-gray-300 mt-1">
+                    Dapatkan ID folder dari URL Google Drive Anda (karakter setelah <code>/folders/</code>).
+                  </p>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
+                    Tautan / Link Shared Folder Google Drive
+                  </label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base">
+                      link
+                    </span>
+                    <input
+                      type="text"
+                      value={driveConfig.sharedFolderUrl}
+                      onChange={(e) => {
+                        const newConfig = { ...driveConfig, sharedFolderUrl: e.target.value };
+                        setDriveConfigState(newConfig);
+                        saveDriveConfig(newConfig);
+                      }}
+                      placeholder="https://drive.google.com/drive/folders/1A2b3C4d5E..."
+                      className="w-full pl-10 pr-3.5 py-2.5 bg-white/10 border border-white/20 rounded-xl font-mono text-[12.5px] text-white focus:outline-none focus:border-[#00a3e0]"
+                    />
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
+                    Google Workspace Service Account Email / OAuth Client ID
+                  </label>
+                  <input
+                    type="text"
+                    value={driveConfig.serviceAccountEmail}
+                    onChange={(e) => {
+                      const newConfig = { ...driveConfig, serviceAccountEmail: e.target.value };
+                      setDriveConfigState(newConfig);
+                      saveDriveConfig(newConfig);
+                    }}
+                    placeholder="sipati-drive-service@kuburaya.iam.gserviceaccount.com"
+                    className="w-full px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-xl font-mono text-[12.5px] text-white focus:outline-none focus:border-[#00a3e0]"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-white/15">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="autoSyncCheck"
+                    checked={googleDriveSync}
+                    onChange={(e) => setGoogleDriveSync(e.target.checked)}
+                    className="w-4 h-4 accent-[#00a3e0] cursor-pointer"
+                  />
+                  <label htmlFor="autoSyncCheck" className="text-xs font-medium text-gray-200 cursor-pointer">
+                    Otomatis Sinkronkan Seluruh Dokumen yang Diunggah ke ID Google Drive di atas
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    openInGoogleDrive();
                   }}
-                  placeholder="https://drive.google.com/drive/folders/1A2b3C4d5E..."
-                  className="w-full pl-10 pr-3.5 py-2.5 bg-white/10 border border-white/20 rounded-xl font-mono text-[12.5px] text-white focus:outline-none focus:border-[#00a3e0]"
-                />
+                  className="px-4 py-2 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg hover:shadow-cyan-500/25"
+                >
+                  <span className="material-symbols-outlined text-sm">open_in_new</span>
+                  <span>Uji &amp; Buka Folder Google Drive</span>
+                </button>
               </div>
             </div>
-
-            <div className="sm:col-span-2">
-              <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
-                Google Workspace Service Account Email / OAuth Client ID
-              </label>
-              <input
-                type="text"
-                value={driveConfig.serviceAccountEmail}
-                onChange={(e) => {
-                  const newConfig = { ...driveConfig, serviceAccountEmail: e.target.value };
-                  setDriveConfigState(newConfig);
-                  saveDriveConfig(newConfig);
-                }}
-                placeholder="sipati-drive-service@kuburaya.iam.gserviceaccount.com"
-                className="w-full px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-xl font-mono text-[12.5px] text-white focus:outline-none focus:border-[#00a3e0]"
-              />
-            </div>
-          </div>
-
-          <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-white/15">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="autoSyncCheck"
-                checked={googleDriveSync}
-                onChange={(e) => setGoogleDriveSync(e.target.checked)}
-                className="w-4 h-4 accent-[#00a3e0] cursor-pointer"
-              />
-              <label htmlFor="autoSyncCheck" className="text-xs font-medium text-gray-200 cursor-pointer">
-                Otomatis Sinkronkan Seluruh Dokumen yang Diunggah ke ID Google Drive di atas
-              </label>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                openInGoogleDrive();
-              }}
-              className="px-4 py-2 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg hover:shadow-cyan-500/25"
-            >
-              <span className="material-symbols-outlined text-sm">open_in_new</span>
-              <span>Uji &amp; Buka Folder Google Drive</span>
-            </button>
-          </div>
-        </div>
+          </>
+        )}
 
         {/* PENGATURAN AKSES LOGIN & KEAMANAN */}
         <div className="bg-black/45 backdrop-blur-xl border border-white/20 rounded-2xl p-6 shadow-2xl space-y-4">
@@ -1034,32 +1283,25 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
           </div>
         </div>
 
-        {/* Submit */}
+        {/* Submit Button - Enabled for ALL users */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
           {saved ? (
             <div className="p-3 bg-emerald-950/80 border border-emerald-400 text-emerald-200 rounded-xl text-xs font-['Inter',sans-serif] font-bold flex items-center gap-2 animate-fadeIn w-full sm:w-auto">
               <span className="material-symbols-outlined text-base text-emerald-400">check_circle</span>
-              <span>Seluruh pengaturan &amp; akun pengguna telah berhasil disimpan!</span>
+              <span>Seluruh perubahan profil &amp; pengaturan telah berhasil disimpan!</span>
             </div>
           ) : (
             <div className="text-xs text-gray-300 italic">
-              {isOfficer
-                ? 'Klik simpan untuk memperbarui seluruh konfigurasi ke database cloud.'
-                : '🔒 Mode Lihat Saja: Pengajuan perubahan hanya dapat dilakukan oleh Officer / Admin.'}
+              Klik tombol di samping untuk menyimpan seluruh perubahan data profil, foto, username, password, dan pengaturan.
             </div>
           )}
           <button
             type="submit"
-            disabled={!isOfficer}
-            className={`w-full sm:w-auto font-['Inter',sans-serif] font-bold text-[13px] uppercase tracking-wider px-7 py-3.5 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2 shrink-0 ${
-              isOfficer
-                ? 'bg-[#00a3e0] hover:bg-[#008bc2] text-white hover:shadow-cyan-500/25 cursor-pointer active:scale-95'
-                : 'bg-slate-700 text-slate-400 border border-slate-600 cursor-not-allowed opacity-75'
-            }`}
-            title={isOfficer ? 'Simpan Seluruh Pengaturan' : 'Hanya Officer / Admin yang dapat menyimpan pengaturan'}
+            className="w-full sm:w-auto font-['Inter',sans-serif] font-bold text-[13px] uppercase tracking-wider px-7 py-3.5 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2 shrink-0 bg-[#00a3e0] hover:bg-[#008bc2] text-white hover:shadow-cyan-500/25 cursor-pointer active:scale-95"
+            title="Simpan Semua Perubahan"
           >
-            <span className="material-symbols-outlined text-lg">{isOfficer ? 'save' : 'lock'}</span>
-            <span>{isOfficer ? 'Simpan Seluruh Pengaturan' : 'Pengaturan Terkunci (Khusus Admin)'}</span>
+            <span className="material-symbols-outlined text-lg">save</span>
+            <span>Simpan Semua Perubahan</span>
           </button>
         </div>
       </form>

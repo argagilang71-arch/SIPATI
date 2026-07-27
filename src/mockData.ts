@@ -136,76 +136,7 @@ export const INITIAL_TASKS: TaskItem[] = [
   }
 ];
 
-export const INITIAL_ARCHIVES: ArchiveItem[] = [
-  {
-    id: 'arch-task-5',
-    taskId: 'task-5',
-    title: 'Surat Edaran Menyemarakkan HUT RI',
-    noSurat: '001/SE/PAN-RI/VIII/2026',
-    bidang: 'Manajemen Korespondensi',
-    date: '01 Agustus 2026',
-    status: 'TERVERIFIKASI',
-    fileType: 'pdf',
-    description: 'Telah didistribusikan ke seluruh dinas dan kecamatan. Surat edaran resmi peringatan HUT RI Ke-81.',
-    fileSize: '1.9 MB'
-  },
-  {
-    id: 'arch-1',
-    taskId: 'task-1',
-    title: 'SK Panitia HUT RI Ke-81 Final',
-    noSurat: '045/SK/PAN-RI/VIII/2026',
-    bidang: 'Legalisasi Operasional',
-    date: '15 Agustus 2026',
-    status: 'TERVERIFIKASI',
-    fileType: 'doc',
-    description: 'Surat Keputusan Bupati/Kepala Daerah tentang Pembentukan Panitia Pelaksana Peringatan HUT Ke-81 Kemerdekaan RI.',
-    fileSize: '2.4 MB'
-  },
-  {
-    id: 'arch-2',
-    title: 'Laporan Verifikasi Tata Kelola Administrasi',
-    noSurat: '112/LAP-GOV/Q2/VII/2026',
-    bidang: 'Legalisasi Operasional',
-    date: '02 Agustus 2026',
-    status: 'FINAL',
-    fileType: 'pdf',
-    description: 'Laporan pertanggungjawaban tata kelola persiapan dan verifikasi naskah.',
-    fileSize: '4.8 MB'
-  },
-  {
-    id: 'arch-3',
-    title: 'Draft Proposal Pengadaan Dokumen Lama',
-    noSurat: 'Ditarik dari arsip aktif',
-    bidang: 'Manajemen Korespondensi',
-    date: '20 Juli 2026',
-    status: 'DIUSANGKAN',
-    fileType: 'zip',
-    description: 'Draf rencana logistik awal yang telah digantikan oleh revisi anggaran utama.',
-    fileSize: '15.1 MB'
-  },
-  {
-    id: 'arch-4',
-    title: 'Berita Acara Rapat Koordinasi Nasional Paskibraka',
-    noSurat: '088/BA/RAKOR/VIII/2026',
-    bidang: 'Tata Kelola Rapat',
-    date: '10 Agustus 2026',
-    status: 'TERVERIFIKASI',
-    fileType: 'pdf',
-    description: 'Hasil penetapan kuota peserta Paskibraka dari 38 provinsi.',
-    fileSize: '1.8 MB'
-  },
-  {
-    id: 'arch-5',
-    title: 'Nota Dinas Perubahan Struktur Tim Protokol',
-    noSurat: '032/ND/PROTOKOL/VIII/2026',
-    bidang: 'Legalisasi Operasional',
-    date: '05 Agustus 2026',
-    status: 'FINAL',
-    fileType: 'doc',
-    description: 'Penyesuaian susunan seksi susunan acara dan penerima tamu VIP.',
-    fileSize: '890 KB'
-  }
-];
+export const INITIAL_ARCHIVES: ArchiveItem[] = [];
 
 export const INITIAL_TEMPLATES: TemplateItem[] = [
   // Legalisasi Operasional (2 template)

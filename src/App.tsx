@@ -132,55 +132,52 @@ export default function App() {
     }, 3500);
   };
 
-  // Helper to synchronize completed tasks directly into archives
-  const syncTaskToArchive = (task: TaskItem, currentArchives: ArchiveItem[]): ArchiveItem[] => {
-    if (task.status === 'SELESAI') {
-      const allFiles = [
-        ...(task.buktiDokumen || []),
-        ...(task.buktiSuratDiterima || []),
-        ...(task.draftPekerjaan || []),
-      ];
-      const hasPdf = allFiles.some((f) => f.toLowerCase().endsWith('.pdf'));
-      const hasZip = allFiles.some((f) => f.toLowerCase().endsWith('.zip') || f.toLowerCase().endsWith('.rar'));
-      const fileType: 'pdf' | 'doc' | 'zip' = hasPdf ? 'pdf' : hasZip ? 'zip' : 'doc';
+  // Ensure the archive list ONLY contains documents from tasks that are completed (status === 'SELESAI')
+  const completedTaskIds = new Set(tasks.filter((t) => t.status === 'SELESAI').map((t) => t.id));
 
-      const existingIndex = currentArchives.findIndex(
-        (a) => a.taskId === task.id || a.title === task.title || (a.noSurat && task.noSurat && a.noSurat === task.noSurat)
-      );
-
-      const formattedNoSurat = task.noSurat || `0${Math.floor(Math.random() * 80) + 10}/SIPATI/VIII/2026`;
-
-      const updatedArchItem: ArchiveItem = {
-        id: existingIndex >= 0 ? currentArchives[existingIndex].id : `arch-${task.id}`,
-        taskId: task.id,
-        title: task.title,
-        noSurat: formattedNoSurat,
-        bidang: task.bidang,
-        date: new Date().toLocaleDateString('id-ID', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        }),
-        status: 'TERVERIFIKASI',
-        fileType,
-        description:
-          task.catatan ||
-          'Dokumen naskah dinas hasil pekerjaan yang telah diselesaikan dan terverifikasi di Google Drive SIPATI.',
-        fileSize: allFiles.length > 0 ? `${(allFiles.length * 1.2 + 0.8).toFixed(1)} MB` : '1.8 MB',
-      };
-
-      if (existingIndex >= 0) {
-        const next = [...currentArchives];
-        next[existingIndex] = updatedArchItem;
-        return next;
-      } else {
-        return [updatedArchItem, ...currentArchives];
+  // Auto-sync completed tasks into archives
+  const displayArchives = React.useMemo(() => {
+    const map = new Map<string, ArchiveItem>();
+    
+    // First, add all existing archives that belong to completed tasks (or standalone uploaded archives)
+    archives.forEach((a) => {
+      if (!a.taskId || completedTaskIds.has(a.taskId)) {
+        map.set(a.id, a);
       }
-    } else {
-      // If task is no longer SELESAI, remove its auto-archive entry
-      return currentArchives.filter((a) => a.taskId !== task.id);
-    }
-  };
+    });
+
+    // Second, ensure every completed task has an archive item entry
+    tasks
+      .filter((t) => t.status === 'SELESAI')
+      .forEach((t) => {
+        const existing = Array.from(map.values()).find((a) => a.taskId === t.id);
+        if (!existing) {
+          const allFiles = [
+            ...(t.buktiDokumen || []),
+            ...(t.buktiSuratDiterima || []),
+            ...(t.draftPekerjaan || []),
+          ];
+          const hasPdf = allFiles.some((f) => f.toLowerCase().endsWith('.pdf'));
+          const hasZip = allFiles.some((f) => f.toLowerCase().endsWith('.zip') || f.toLowerCase().endsWith('.rar'));
+          const fileType: 'pdf' | 'doc' | 'zip' = hasPdf ? 'pdf' : hasZip ? 'zip' : 'doc';
+          const archId = `arch-${t.id}`;
+          map.set(archId, {
+            id: archId,
+            taskId: t.id,
+            title: t.title,
+            noSurat: t.noSurat || `0${Math.floor(Math.random() * 80) + 10}/SIPATI/VIII/2026`,
+            bidang: t.bidang,
+            date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+            status: 'TERVERIFIKASI',
+            fileType,
+            description: t.catatan || 'Dokumen naskah dinas hasil pekerjaan yang telah diselesaikan.',
+            fileSize: allFiles.length > 0 ? `${(allFiles.length * 1.2 + 0.8).toFixed(1)} MB` : '1.8 MB',
+          });
+        }
+      });
+
+    return Array.from(map.values());
+  }, [tasks, archives, completedTaskIds]);
 
   // Task Handlers
   const handleSaveTask = (updatedTask: TaskItem) => {
@@ -189,12 +186,8 @@ export default function App() {
       ? tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t))
       : [updatedTask, ...tasks];
 
-    const nextArchives = syncTaskToArchive(updatedTask, archives);
-
     setTasks(nextTasks);
-    setArchives(nextArchives);
     saveTasksToCloud(nextTasks);
-    saveArchivesToCloud(nextArchives);
     setActiveTaskForModal(null);
 
     if (updatedTask.status === 'SELESAI') {
@@ -223,12 +216,9 @@ export default function App() {
 
     const updatedTask: TaskItem = { ...targetTask, status: newStatus };
     const updatedTasks = tasks.map((t) => (t.id === taskId ? updatedTask : t));
-    const nextArchives = syncTaskToArchive(updatedTask, archives);
 
     setTasks(updatedTasks);
-    setArchives(nextArchives);
     saveTasksToCloud(updatedTasks);
-    saveArchivesToCloud(nextArchives);
 
     if (newStatus === 'SELESAI') {
       showBanner(
@@ -308,21 +298,25 @@ export default function App() {
   // Add Archive item
   const handleAddArchive = (file?: File) => {
     let title = 'Nota Kesepakatan Lintas Sektor HUT RI 81';
-    let fileType = 'pdf';
+    let fileType: 'pdf' | 'doc' | 'zip' = 'pdf';
     let fileSize = '3.1 MB';
 
     if (file) {
       title = file.name;
       const ext = file.name.split('.').pop()?.toLowerCase() || 'pdf';
-      fileType = ext;
+      fileType = ext === 'doc' || ext === 'docx' ? 'doc' : ext === 'zip' || ext === 'rar' ? 'zip' : 'pdf';
       const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
       fileSize = `${sizeMb} MB`;
     }
 
+    const taskId = `task-arch-${Date.now()}`;
+    const noSurat = `0${archives.length + 50}/NK/PAN-RI/VIII/2026`;
+
     const newArch: ArchiveItem = {
       id: `arch-${Date.now()}`,
+      taskId,
       title,
-      noSurat: `0${archives.length + 50}/NK/PAN-RI/VIII/2026`,
+      noSurat,
       bidang: 'Legalisasi Operasional',
       date: new Date().toLocaleDateString('id-ID', {
         day: 'numeric',
@@ -331,13 +325,32 @@ export default function App() {
       }),
       status: 'TERVERIFIKASI',
       fileType,
-      description: 'Dokumen arsip terunggah resmi terverifikasi.',
+      description: 'Dokumen arsip terunggah resmi terverifikasi dari pekerjaan yang diselesaikan.',
       fileSize,
     };
+
+    const newTask: TaskItem = {
+      id: taskId,
+      title,
+      bidang: 'Legalisasi Operasional',
+      pj: 'Staf Administrasi',
+      status: 'SELESAI',
+      catatan: 'Pekerjaan selesai dengan unggahan berkas ke Arsip Digital.',
+      buktiDokumen: file ? [file.name] : ['Dokumen_Arsip_Terverifikasi.pdf'],
+      buktiSuratDiterima: [],
+      draftPekerjaan: [],
+      noSurat,
+      dateCreated: new Date().toISOString().split('T')[0],
+    };
+
+    const nextTasks = [newTask, ...tasks];
     const nextArchives = [newArch, ...archives];
+
+    setTasks(nextTasks);
     setArchives(nextArchives);
+    saveTasksToCloud(nextTasks);
     saveArchivesToCloud(nextArchives);
-    showBanner(`Dokumen "${title}" berhasil diunggah dan disimpan di Arsip Digital.`);
+    showBanner(`Dokumen "${title}" berhasil diunggah, tersimpan di Arsip Digital & terdaftar di Daftar Pekerjaan (Selesai).`);
   };
 
   // Downloads
@@ -486,7 +499,7 @@ export default function App() {
 
               {currentView === 'arsip' && (
                 <ArsipDigital
-                  archives={archives}
+                  archives={displayArchives}
                   onViewArchive={(item) => setActiveArchiveForViewer(item)}
                   onDownloadArchive={handleDownloadArchiveFile}
                   onAddArchive={handleAddArchive}
@@ -496,7 +509,7 @@ export default function App() {
               {currentView === 'ringkasan' && (
                 <RingkasanDashboard
                   tasks={tasks}
-                  archives={archives}
+                  archives={displayArchives}
                   banner={bannerConfig}
                   onSaveBannerConfig={handleSaveBannerConfig}
                   onOpenSendEmailModal={() => setIsSendEmailModalOpen(true)}

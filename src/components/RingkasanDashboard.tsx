@@ -313,6 +313,8 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
                   ))}
                 </Pie>
                 <Tooltip
+                  wrapperStyle={{ zIndex: 9999, pointerEvents: 'none' }}
+                  allowEscapeViewBox={{ x: true, y: true }}
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0];
@@ -320,16 +322,19 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
                       const val = Number(data.value) || 0;
                       const pct = Math.round((val / total) * 100);
                       return (
-                        <div className="bg-[#0b1329] border border-cyan-400/40 p-3 rounded-xl shadow-2xl backdrop-blur-md font-['Inter',sans-serif] text-white space-y-1">
-                          <div className="flex items-center gap-2">
+                        <div className="bg-[#081225] border-2 border-cyan-400 p-3 rounded-xl shadow-2xl font-['Inter',sans-serif] text-white space-y-1 z-[9999] min-w-[160px]">
+                          <div className="flex items-center gap-2 border-b border-white/10 pb-1.5">
                             <span
-                              className="w-2.5 h-2.5 rounded-full"
+                              className="w-3 h-3 rounded-full shrink-0 shadow-sm"
                               style={{ backgroundColor: data.payload.color }}
                             ></span>
-                            <span className="font-bold text-xs text-white">{data.name}</span>
+                            <span className="font-extrabold text-xs text-white uppercase tracking-wider">{data.name}</span>
                           </div>
-                          <div className="text-xs text-gray-200 font-mono">
-                            Jumlah: <strong className="text-cyan-300">{val} Pekerjaan</strong> ({pct}%)
+                          <div className="text-xs text-cyan-200 font-mono font-semibold pt-1">
+                            Status: <strong className="text-white text-sm font-bold">{val} Berkas</strong>
+                          </div>
+                          <div className="text-[11px] text-gray-300 font-mono">
+                            Proporsi: <span className="text-emerald-400 font-bold">{pct}%</span> dari total
                           </div>
                         </div>
                       );
@@ -341,8 +346,8 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
             </ResponsiveContainer>
 
             {/* Glowing Center Content */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center shadow-inner">
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
+              <div className="w-24 h-24 rounded-full bg-[#070e1c]/90 border border-white/15 backdrop-blur-md flex flex-col items-center justify-center shadow-2xl">
                 <span className="font-['Lora',serif] text-3xl font-extrabold text-white leading-none">
                   {totalTasks}
                 </span>
@@ -361,11 +366,11 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
                   <span className="material-symbols-outlined text-xs">check_circle</span>
                   Selesai
                 </span>
-                <span className="text-[10px] font-mono font-bold">{Math.round((selesaiTasks/totalTasks)*100)}%</span>
+                <span className="text-[10px] font-mono font-bold">{totalTasks > 0 ? Math.round((selesaiTasks/totalTasks)*100) : 0}%</span>
               </div>
               <div className="text-base font-extrabold text-white">{selesaiTasks} <span className="text-[10px] text-gray-400 font-normal">berkas</span></div>
               <div className="w-full bg-black/40 h-1 rounded-full mt-1.5 overflow-hidden">
-                <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${Math.round((selesaiTasks/totalTasks)*100)}%` }}></div>
+                <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${totalTasks > 0 ? Math.round((selesaiTasks/totalTasks)*100) : 0}%` }}></div>
               </div>
             </div>
 
@@ -375,11 +380,11 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
                   <span className="material-symbols-outlined text-xs">hourglass_top</span>
                   Proses
                 </span>
-                <span className="text-[10px] font-mono font-bold">{Math.round((prosesTasks/totalTasks)*100)}%</span>
+                <span className="text-[10px] font-mono font-bold">{totalTasks > 0 ? Math.round((prosesTasks/totalTasks)*100) : 0}%</span>
               </div>
               <div className="text-base font-extrabold text-white">{prosesTasks} <span className="text-[10px] text-gray-400 font-normal">berkas</span></div>
               <div className="w-full bg-black/40 h-1 rounded-full mt-1.5 overflow-hidden">
-                <div className="bg-amber-400 h-full rounded-full" style={{ width: `${Math.round((prosesTasks/totalTasks)*100)}%` }}></div>
+                <div className="bg-amber-400 h-full rounded-full" style={{ width: `${totalTasks > 0 ? Math.round((prosesTasks/totalTasks)*100) : 0}%` }}></div>
               </div>
             </div>
 
@@ -389,11 +394,11 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
                   <span className="material-symbols-outlined text-xs">pending</span>
                   Belum
                 </span>
-                <span className="text-[10px] font-mono font-bold">{Math.round((belumTasks/totalTasks)*100)}%</span>
+                <span className="text-[10px] font-mono font-bold">{totalTasks > 0 ? Math.round((belumTasks/totalTasks)*100) : 0}%</span>
               </div>
               <div className="text-base font-extrabold text-white">{belumTasks} <span className="text-[10px] text-gray-400 font-normal">berkas</span></div>
               <div className="w-full bg-black/40 h-1 rounded-full mt-1.5 overflow-hidden">
-                <div className="bg-rose-400 h-full rounded-full" style={{ width: `${Math.round((belumTasks/totalTasks)*100)}%` }}></div>
+                <div className="bg-rose-400 h-full rounded-full" style={{ width: `${totalTasks > 0 ? Math.round((belumTasks/totalTasks)*100) : 0}%` }}></div>
               </div>
             </div>
           </div>

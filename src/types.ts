@@ -56,11 +56,15 @@ export interface TeamMember {
   id: string;
   nama: string;
   nip: string;
-  jabatan: string;
-  subBagian: string;
+  jabatan?: string;
+  subBagian?: string;
   username: string;
   password?: string;
-  role: 'Officer / Administrator' | 'Analis Kebijakan' | 'Staf Operasional';
+  role: 'Officer / Administrator' | 'Analis Kebijakan' | 'Staf Operasional' | string;
+  foto?: string;
+  avatar?: string;
+  photo?: string;
+  originalUsername?: string;
 }
 
 export interface BannerConfig {
@@ -71,6 +75,7 @@ export interface BannerConfig {
   linkUrl?: string;
   linkText?: string;
   imageUrl?: string;
+  images?: string[];
   dismissible?: boolean;
   updatedAt?: string;
   updatedBy?: string;

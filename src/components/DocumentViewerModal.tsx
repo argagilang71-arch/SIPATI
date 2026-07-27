@@ -24,25 +24,31 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
     async function loadBlob() {
       setIsLoading(true);
-      const res = await getStoredFileBlob(item.title);
+      const targetName = item.fileName || item.title;
+      const res = await getStoredFileBlob(targetName, {
+        title: item.title,
+        noSurat: item.noSurat,
+        bidang: item.bidang,
+        catatan: item.description,
+      });
       if (!active) return;
 
       if (res && res.blob) {
         createdUrl = URL.createObjectURL(res.blob);
         setFileUrl(createdUrl);
 
-        if (res.mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(item.title)) {
+        if (res.mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(targetName)) {
           setFileType('image');
-        } else if (res.mimeType === 'application/pdf' || /\.pdf$/i.test(item.title)) {
+        } else if (res.mimeType === 'application/pdf' || /\.pdf$/i.test(targetName)) {
           setFileType('pdf');
         } else {
           setFileType('other');
         }
       } else {
         // Fallback by extension name
-        if (/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(item.title)) {
+        if (/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(targetName)) {
           setFileType('image');
-        } else if (/\.pdf$/i.test(item.title)) {
+        } else if (/\.pdf$/i.test(targetName)) {
           setFileType('pdf');
         } else {
           setFileType('other');
@@ -59,7 +65,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [item.title]);
+  }, [item.fileName, item.title, item.noSurat, item.bidang, item.description]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 overflow-y-auto">
@@ -95,7 +101,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
             <OfficialDocumentViewer
               data={{
                 title: item.title,
-                fileName: `${item.title}.${item.fileType || 'docx'}`,
+                fileName: item.fileName || (item.title.toLowerCase().endsWith(`.${(item.fileType || 'docx').toLowerCase()}`) ? item.title : `${item.title}.${item.fileType || 'docx'}`),
                 noSurat: item.noSurat,
                 bidang: item.bidang,
                 description: item.description,

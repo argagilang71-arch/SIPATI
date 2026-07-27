@@ -3,8 +3,10 @@ import { renderAsync } from 'docx-preview';
 import * as pdfjsLib from 'pdfjs-dist';
 import { openInGoogleDrive, getStoredFileBlob } from '../utils/fileStorage';
 
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+// Configure PDF.js worker with exact matching version
+if (pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version || '6.1.200'}/build/pdf.worker.min.mjs`;
+}
 
 export interface DocumentPreviewData {
   title: string;
@@ -26,198 +28,50 @@ interface OfficialDocumentViewerProps {
   onClose?: () => void;
 }
 
-// Dedicated High-Performance PDF Viewer Component
-const PdfViewer: React.FC<{ blob: Blob | null; url?: string | null; onDownload: () => void }> = ({
-  blob,
-  url,
-  onDownload,
-}) => {
-  const [numPages, setNumPages] = useState<number>(0);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [scale, setScale] = useState<number>(1.2);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
+// Dedicated PDF Viewer Component
+const PdfViewer: React.FC<{
+  blob: Blob | null;
+  onDownload: () => void;
+  onOpenNewTab: () => void;
+}> = ({ onDownload, onOpenNewTab }) => {
+  return (
+    <div className="w-full h-full min-h-[460px] flex items-center justify-center p-4 sm:p-8 bg-[#00182b] rounded-2xl border border-cyan-500/30">
+      <div className="max-w-xl w-full flex flex-col items-center text-center space-y-5">
+        {/* PDF Badge Icon */}
+        <div className="w-16 h-16 rounded-2xl bg-[#033957] border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-xl">
+          <span className="material-symbols-outlined text-3xl">picture_as_pdf</span>
+        </div>
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadPdf = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        let pdfData: Uint8Array | ArrayBuffer | string | null = null;
-        if (blob) {
-          pdfData = await blob.arrayBuffer();
-        } else if (url) {
-          pdfData = url;
-        }
+        {/* Heading */}
+        <h3 className="font-['Lora',serif] font-bold text-xl sm:text-2xl text-white tracking-tight">
+          Pratinjau Dokumen Naskah Resmi PDF
+        </h3>
 
-        if (!pdfData) {
-          throw new Error('Berkas PDF tidak ditemukan.');
-        }
-
-        const loadingTask = pdfjsLib.getDocument(
-          typeof pdfData === 'string' ? { url: pdfData } : { data: pdfData }
-        );
-
-        const pdf = await loadingTask.promise;
-        if (!isMounted) return;
-        pdfDocRef.current = pdf;
-        setNumPages(pdf.numPages);
-        setCurrentPage(1);
-        setLoading(false);
-      } catch (err: any) {
-        console.error('PDF.js load error:', err);
-        if (isMounted) {
-          setError(err?.message || 'Gagal memuat pratinjau PDF.');
-          setLoading(false);
-        }
-      }
-    };
-
-    loadPdf();
-    return () => {
-      isMounted = false;
-    };
-  }, [blob, url]);
-
-  // Render current page onto canvas
-  useEffect(() => {
-    let isMounted = true;
-    const renderPage = async () => {
-      if (!pdfDocRef.current || !canvasRef.current) return;
-      try {
-        const page = await pdfDocRef.current.getPage(currentPage);
-        if (!isMounted || !canvasRef.current) return;
-        const viewport = page.getViewport({ scale });
-        const canvas = canvasRef.current;
-        const context = canvas.getContext('2d');
-        if (!context) return;
-
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-
-        const renderContext = {
-          canvasContext: context,
-          viewport: viewport,
-        };
-
-        await page.render(renderContext).promise;
-      } catch (renderErr) {
-        console.error('Error rendering PDF page:', renderErr);
-      }
-    };
-
-    if (!loading && !error && pdfDocRef.current) {
-      renderPage();
-    }
-  }, [currentPage, scale, loading, error]);
-
-  if (loading) {
-    return (
-      <div className="w-full h-[520px] flex flex-col items-center justify-center bg-slate-900 text-cyan-300 gap-3 rounded-xl border border-white/20">
-        <span className="material-symbols-outlined text-4xl animate-spin text-cyan-400">
-          sync
-        </span>
-        <p className="text-xs font-semibold">Memuat berkas PDF otentik dengan PDF.js Engine...</p>
-      </div>
-    );
-  }
-
-  if (error || numPages === 0) {
-    return (
-      <div className="w-full h-[520px] flex flex-col items-center justify-center p-8 text-center text-slate-200 bg-slate-900 rounded-xl space-y-4 border border-white/20">
-        <span className="material-symbols-outlined text-5xl text-amber-500">
-          picture_as_pdf
-        </span>
-        <h5 className="font-bold text-base text-white">Dokumen Berkas PDF Otentik</h5>
-        <p className="text-xs text-gray-300 max-w-md mx-auto leading-relaxed">
-          Dokumen asli PDF ini tersimpan aman di SIPATI Cloud. Anda dapat membuka PDF secara langsung di tab baru atau mengunduhnya.
+        {/* Subtitle / Description */}
+        <p className="text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
+          Peramban membatasi pratinjau PDF langsung di dalam bingkai aplikasi. Klik tombol di bawah untuk membuka PDF di tab baru atau mengunduh dokumen.
         </p>
-        <div className="flex flex-wrap justify-center gap-3 pt-2">
-          {url && (
-            <button
-              type="button"
-              onClick={() => window.open(url, '_blank')}
-              className="px-4 py-2 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg"
-            >
-              <span className="material-symbols-outlined text-sm">open_in_new</span>
-              <span>Buka PDF di Tab Baru</span>
-            </button>
-          )}
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-3.5 pt-3">
+          <button
+            type="button"
+            onClick={onOpenNewTab}
+            className="px-5 py-3 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-2 cursor-pointer active:scale-98"
+          >
+            <span className="material-symbols-outlined text-xl">open_in_new</span>
+            <span>Buka &amp; Baca PDF di Tab Baru</span>
+          </button>
+
           <button
             type="button"
             onClick={onDownload}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg"
+            className="px-5 py-3 bg-[#00a05e] hover:bg-[#00874e] text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 cursor-pointer active:scale-98"
           >
-            <span className="material-symbols-outlined text-sm">download</span>
-            <span>Unduh File PDF Original</span>
+            <span className="material-symbols-outlined text-xl">download</span>
+            <span>Unduh File PDF</span>
           </button>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full h-full min-h-[520px] flex flex-col items-center bg-slate-950 rounded-xl overflow-hidden border border-slate-700">
-      {/* PDF Toolbar Controls */}
-      <div className="w-full bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-200 shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-cyan-400 text-base">picture_as_pdf</span>
-          <span className="font-bold text-white text-xs">PDF Document Viewer</span>
-          <span className="bg-slate-800 border border-slate-700 text-cyan-300 px-2.5 py-0.5 rounded font-mono text-[11px] font-semibold">
-            Halaman {currentPage} / {numPages}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Navigation */}
-          <button
-            type="button"
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white rounded font-bold transition cursor-pointer flex items-center gap-1 border border-slate-700"
-          >
-            <span className="material-symbols-outlined text-xs">arrow_back</span>
-            <span className="hidden sm:inline">Sebelumnya</span>
-          </button>
-          <button
-            type="button"
-            disabled={currentPage >= numPages}
-            onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
-            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white rounded font-bold transition cursor-pointer flex items-center gap-1 border border-slate-700"
-          >
-            <span className="hidden sm:inline">Selanjutnya</span>
-            <span className="material-symbols-outlined text-xs">arrow_forward</span>
-          </button>
-
-          {/* Zoom Controls */}
-          <div className="flex items-center gap-1 bg-slate-800 px-2 py-1 rounded border border-slate-700 ml-2 text-[11px]">
-            <button
-              type="button"
-              onClick={() => setScale((s) => Math.max(0.6, s - 0.2))}
-              className="hover:text-cyan-300 px-1 font-bold"
-              title="Perkecil"
-            >
-              -
-            </button>
-            <span className="font-mono text-cyan-200">{Math.round(scale * 100)}%</span>
-            <button
-              type="button"
-              onClick={() => setScale((s) => Math.min(2.5, s + 0.2))}
-              className="hover:text-cyan-300 px-1 font-bold"
-              title="Perbesar"
-            >
-              +
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Canvas Scroll Area */}
-      <div className="w-full flex-1 overflow-auto p-4 flex justify-center items-start bg-slate-900/90 min-h-[460px]">
-        <canvas ref={canvasRef} className="shadow-2xl rounded border border-slate-700 bg-white max-w-full" />
       </div>
     </div>
   );
@@ -314,6 +168,71 @@ export const OfficialDocumentViewer: React.FC<OfficialDocumentViewerProps> = ({
     window.print();
   };
 
+  const handleOpenNewTab = async () => {
+    // 1. Synchronously open new tab to bypass popup blockers
+    const targetWin = window.open('about:blank', '_blank');
+    if (!targetWin) {
+      onDownload();
+      return;
+    }
+
+    try {
+      // If fileUrl is a remote HTTP/HTTPS link, open directly
+      if (data.fileUrl && (data.fileUrl.startsWith('http://') || data.fileUrl.startsWith('https://'))) {
+        targetWin.location.href = data.fileUrl;
+        return;
+      }
+
+      let activeBlob: Blob | null = rawBlob;
+
+      // Check if fileUrl is a base64 Data URL
+      if (!activeBlob && data.fileUrl && data.fileUrl.startsWith('data:')) {
+        try {
+          const arr = data.fileUrl.split(',');
+          const mimeMatch = arr[0].match(/:(.*?);/);
+          const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          activeBlob = new Blob([u8arr], { type: mime });
+        } catch (e) {
+          console.error('Failed to parse data URL:', e);
+        }
+      }
+
+      // If still no blob, retrieve or generate via getStoredFileBlob
+      if (!activeBlob) {
+        const res = await getStoredFileBlob(data.fileName || data.title, {
+          title: data.title,
+          noSurat: data.noSurat,
+          bidang: data.bidang,
+          catatan: displayCatatan,
+        });
+        if (res?.blob) {
+          activeBlob = res.blob;
+        }
+      }
+
+      if (activeBlob) {
+        const pdfBlobUrl = URL.createObjectURL(activeBlob);
+        targetWin.location.href = pdfBlobUrl;
+      } else {
+        targetWin.document.write(`
+          <div style="font-family: sans-serif; text-align: center; padding: 40px; background: #020c1b; color: white;">
+            <h2>Dokumen Tidak Ditemukan</h2>
+            <p style="color: #94a3b8;">Berkas PDF tidak dapat dimuat secara langsung.</p>
+          </div>
+        `);
+      }
+    } catch (err) {
+      console.error('Failed to open document in new tab:', err);
+      onDownload();
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full font-['Inter',sans-serif] text-white">
       {/* Top Toolbar */}
@@ -340,17 +259,15 @@ export const OfficialDocumentViewer: React.FC<OfficialDocumentViewerProps> = ({
             <span className="hidden sm:inline">Cetak</span>
           </button>
 
-          {data.fileUrl && (
-            <button
-              type="button"
-              onClick={() => window.open(data.fileUrl!, '_blank')}
-              className="px-3 py-1.5 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-lg font-bold text-xs flex items-center gap-1 transition shadow cursor-pointer"
-              title="Buka File di Tab Baru"
-            >
-              <span className="material-symbols-outlined text-sm">open_in_new</span>
-              <span className="hidden sm:inline">Tab Baru</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleOpenNewTab}
+            className="px-3 py-1.5 bg-[#00a3e0] hover:bg-[#008bc2] text-white rounded-lg font-bold text-xs flex items-center gap-1 transition shadow cursor-pointer"
+            title="Buka File di Tab Baru"
+          >
+            <span className="material-symbols-outlined text-sm">open_in_new</span>
+            <span className="hidden sm:inline">Tab Baru</span>
+          </button>
 
           <button
             type="button"
@@ -430,8 +347,8 @@ export const OfficialDocumentViewer: React.FC<OfficialDocumentViewerProps> = ({
                 )}
               </div>
             ) : isPdf ? (
-              /* High-Fidelity PDF Viewer using PDF.js */
-              <PdfViewer blob={rawBlob} url={data.fileUrl} onDownload={onDownload} />
+              /* Dedicated PDF Viewer with New Tab Stream */
+              <PdfViewer blob={rawBlob} onDownload={onDownload} onOpenNewTab={handleOpenNewTab} />
             ) : isImage && data.fileUrl ? (
               /* Image Native Viewer */
               <div className="p-4 flex flex-col items-center justify-center min-h-[480px]">
