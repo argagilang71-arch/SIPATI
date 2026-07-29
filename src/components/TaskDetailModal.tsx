@@ -12,7 +12,7 @@ import { OfficialDocumentViewer } from './OfficialDocumentViewer';
 interface TaskDetailModalProps {
   task: TaskItem;
   onClose: () => void;
-  onSave: (updatedTask: TaskItem) => void;
+  onSave: (updatedTask: TaskItem, closeModal?: boolean) => void;
   onDelete?: (taskId: string) => void;
 }
 
@@ -269,7 +269,7 @@ const FilePreviewSubModal: React.FC<{
 interface TaskDetailModalProps {
   task: TaskItem;
   onClose: () => void;
-  onSave: (updatedTask: TaskItem) => void;
+  onSave: (updatedTask: TaskItem, closeModal?: boolean) => void;
   onDelete?: (taskId: string) => void;
 }
 
@@ -305,11 +305,38 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     task.buktiSuratDiterima || []
   );
 
+  // Sync internal form states whenever task prop changes from cloud or parent
+  useEffect(() => {
+    setTitle(task.title);
+    setNoSurat(task.noSurat || '');
+    setSelectedBidangOption(
+      ['Legalisasi Operasional', 'Tata Kelola Rapat', 'Manajemen Korespondensi'].includes(task.bidang)
+        ? task.bidang
+        : '__TAMBAH_BARU__'
+    );
+    setCustomBidang(
+      ['Legalisasi Operasional', 'Tata Kelola Rapat', 'Manajemen Korespondensi'].includes(task.bidang)
+        ? ''
+        : task.bidang
+    );
+    setPj(task.pj === '—' ? '' : task.pj);
+    setStatus(task.status);
+    setCatatan(task.catatan);
+    setDraftPekerjaan(task.draftPekerjaan || []);
+    setBuktiDokumen(task.buktiDokumen || []);
+    setBuktiSuratDiterima(task.buktiSuratDiterima || []);
+  }, [task]);
+
   // File preview modal state
   const [activePreview, setActivePreview] = useState<{
     fileName: string;
     category: string;
   } | null>(null);
+
+  const finalBidang =
+    selectedBidangOption === '__TAMBAH_BARU__'
+      ? customBidang.trim() || 'Bidang Umum'
+      : selectedBidangOption;
 
   const handleFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -320,13 +347,37 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       filesArray.forEach((f: File) => registerUploadedFile(f));
       const newFileNames = filesArray.map((f: File) => f.name);
 
+      let nextDraft = draftPekerjaan;
+      let nextDokumen = buktiDokumen;
+      let nextTandaTerima = buktiSuratDiterima;
+
       if (type === 'draft') {
-        setDraftPekerjaan((prev) => [...prev, ...newFileNames]);
+        nextDraft = [...draftPekerjaan, ...newFileNames];
+        setDraftPekerjaan(nextDraft);
       } else if (type === 'dokumen') {
-        setBuktiDokumen((prev) => [...prev, ...newFileNames]);
+        nextDokumen = [...buktiDokumen, ...newFileNames];
+        setBuktiDokumen(nextDokumen);
       } else {
-        setBuktiSuratDiterima((prev) => [...prev, ...newFileNames]);
+        nextTandaTerima = [...buktiSuratDiterima, ...newFileNames];
+        setBuktiSuratDiterima(nextTandaTerima);
       }
+
+      // Instant cloud sync on file upload so other devices see the new files immediately
+      onSave(
+        {
+          ...task,
+          title,
+          noSurat: noSurat.trim() || task.noSurat || `012/SIPATI/2026`,
+          bidang: finalBidang,
+          pj: pj.trim() ? pj.trim() : '—',
+          status,
+          catatan,
+          draftPekerjaan: nextDraft,
+          buktiDokumen: nextDokumen,
+          buktiSuratDiterima: nextTandaTerima,
+        },
+        false
+      );
     }
   };
 
@@ -334,19 +385,37 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     fileName: string,
     type: 'draft' | 'dokumen' | 'tandaTerima'
   ) => {
-    if (type === 'draft') {
-      setDraftPekerjaan((prev) => prev.filter((f) => f !== fileName));
-    } else if (type === 'dokumen') {
-      setBuktiDokumen((prev) => prev.filter((f) => f !== fileName));
-    } else {
-      setBuktiSuratDiterima((prev) => prev.filter((f) => f !== fileName));
-    }
-  };
+    let nextDraft = draftPekerjaan;
+    let nextDokumen = buktiDokumen;
+    let nextTandaTerima = buktiSuratDiterima;
 
-  const finalBidang =
-    selectedBidangOption === '__TAMBAH_BARU__'
-      ? customBidang.trim() || 'Bidang Umum'
-      : selectedBidangOption;
+    if (type === 'draft') {
+      nextDraft = draftPekerjaan.filter((f) => f !== fileName);
+      setDraftPekerjaan(nextDraft);
+    } else if (type === 'dokumen') {
+      nextDokumen = buktiDokumen.filter((f) => f !== fileName);
+      setBuktiDokumen(nextDokumen);
+    } else {
+      nextTandaTerima = buktiSuratDiterima.filter((f) => f !== fileName);
+      setBuktiSuratDiterima(nextTandaTerima);
+    }
+
+    onSave(
+      {
+        ...task,
+        title,
+        noSurat: noSurat.trim() || task.noSurat || `012/SIPATI/2026`,
+        bidang: finalBidang,
+        pj: pj.trim() ? pj.trim() : '—',
+        status,
+        catatan,
+        draftPekerjaan: nextDraft,
+        buktiDokumen: nextDokumen,
+        buktiSuratDiterima: nextTandaTerima,
+      },
+      false
+    );
+  };
 
   const handleDownloadFile = (fileName: string) => {
     downloadStoredFile(fileName, {

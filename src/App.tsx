@@ -87,7 +87,13 @@ export default function App() {
       if (cloudBanner) setBannerConfig(cloudBanner);
     });
 
-    const unsubTasks = subscribeTasksCloud((nextTasks) => setTasks(nextTasks));
+    const unsubTasks = subscribeTasksCloud((nextTasks) => {
+      setTasks(nextTasks);
+      setActiveTaskForModal((current) => {
+        if (!current) return null;
+        return nextTasks.find((t) => t.id === current.id) || current;
+      });
+    });
     const unsubArchives = subscribeArchivesCloud((nextArchives) => setArchives(nextArchives));
     const unsubTemplates = subscribeTemplatesCloud((nextTemplates) => setTemplates(nextTemplates));
     const unsubProposals = subscribeProposalsCloud((nextProposals) => setProposals(nextProposals));
@@ -224,7 +230,7 @@ export default function App() {
   }, [tasks, archives, completedTaskIds]);
 
   // Task Handlers
-  const handleSaveTask = (updatedTask: TaskItem) => {
+  const handleSaveTask = (updatedTask: TaskItem, closeModal: boolean = true) => {
     const exists = tasks.some((t) => t.id === updatedTask.id);
     const nextTasks = exists
       ? tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t))
@@ -238,7 +244,12 @@ export default function App() {
     setArchives(nextArchives);
     saveTasksToCloud(nextTasks);
     saveArchivesToCloud(nextArchives);
-    setActiveTaskForModal(null);
+
+    if (closeModal) {
+      setActiveTaskForModal(null);
+    } else {
+      setActiveTaskForModal(updatedTask);
+    }
 
     if (updatedTask.status === 'SELESAI') {
       addNotification(
@@ -248,16 +259,20 @@ export default function App() {
         updatedTask.id
       );
       addActivityLog('Menyelesaikan Pekerjaan', updatedTask.title, 'complete');
-      showBanner(
-        `Pekerjaan "${updatedTask.title}" telah diselesaikan & otomatis terdaftar di Arsip Digital (No. Surat: ${updatedTask.noSurat}).`
-      );
+      if (closeModal) {
+        showBanner(
+          `Pekerjaan "${updatedTask.title}" telah diselesaikan & otomatis terdaftar di Arsip Digital (No. Surat: ${updatedTask.noSurat}).`
+        );
+      }
     } else {
       addActivityLog(exists ? 'Memperbarui Pekerjaan' : 'Membuat Pekerjaan Baru', updatedTask.title, exists ? 'edit' : 'create');
-      showBanner(
-        exists && targetTaskWasCompleted(tasks, updatedTask.id)
-          ? `Pekerjaan diperbarui, otomatis dikeluarkan dari Arsip Digital.`
-          : `Perubahan pekerjaan tersimpan.`
-      );
+      if (closeModal) {
+        showBanner(
+          exists && targetTaskWasCompleted(tasks, updatedTask.id)
+            ? `Pekerjaan diperbarui, otomatis dikeluarkan dari Arsip Digital.`
+            : `Perubahan pekerjaan tersimpan.`
+        );
+      }
     }
   };
 
