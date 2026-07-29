@@ -175,7 +175,7 @@ export async function saveBannerConfigToCloud(banner: BannerConfig): Promise<boo
       ...banner,
       updatedAt: new Date().toISOString(),
     }));
-  });
+  }, 300, banner);
 }
 
 /**
@@ -256,7 +256,7 @@ export async function saveTeamMembersToCloud(members: TeamMember[]): Promise<boo
         updatedAt: new Date().toISOString(),
       })
     );
-  });
+  }, 300, normalizedMembers);
 }
 
 /**
@@ -384,7 +384,7 @@ export async function saveSettingsToCloud(settings: {
       }),
       { merge: true }
     );
-  });
+  }, 300, settings);
 }
 
 /**
@@ -461,7 +461,7 @@ export async function saveTasksToCloud(tasks: TaskItem[]): Promise<boolean> {
   return scheduleDebouncedCloudWrite('tasks', async () => {
     const docRef = doc(db, TASKS_DOC_PATH[0], TASKS_DOC_PATH[1]);
     await setDoc(docRef, cleanForFirestore({ tasks, updatedAt: new Date().toISOString() }));
-  });
+  }, 300, tasks);
 }
 
 /**
@@ -527,7 +527,7 @@ export async function saveArchivesToCloud(archives: ArchiveItem[]): Promise<bool
   return scheduleDebouncedCloudWrite('archives', async () => {
     const docRef = doc(db, ARCHIVES_DOC_PATH[0], ARCHIVES_DOC_PATH[1]);
     await setDoc(docRef, cleanForFirestore({ archives, updatedAt: new Date().toISOString() }));
-  });
+  }, 300, archives);
 }
 
 /**
@@ -593,7 +593,7 @@ export async function saveTemplatesToCloud(templates: TemplateItem[]): Promise<b
   return scheduleDebouncedCloudWrite('templates', async () => {
     const docRef = doc(db, TEMPLATES_DOC_PATH[0], TEMPLATES_DOC_PATH[1]);
     await setDoc(docRef, cleanForFirestore({ templates, updatedAt: new Date().toISOString() }));
-  });
+  }, 300, templates);
 }
 
 /**
@@ -659,7 +659,7 @@ export async function saveProposalsToCloud(proposals: ProposalItem[]): Promise<b
   return scheduleDebouncedCloudWrite('proposals', async () => {
     const docRef = doc(db, PROPOSALS_DOC_PATH[0], PROPOSALS_DOC_PATH[1]);
     await setDoc(docRef, cleanForFirestore({ proposals, updatedAt: new Date().toISOString() }));
-  });
+  }, 300, proposals);
 }
 
 /**

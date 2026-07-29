@@ -72,16 +72,16 @@ export default function App() {
   // Initial load from Cloud Firestore & real-time subscriptions across all connected devices
   useEffect(() => {
     loadTasksFromCloud().then((cloudTasks) => {
-      if (cloudTasks && cloudTasks.length > 0) setTasks(cloudTasks);
+      if (cloudTasks) setTasks(cloudTasks);
     });
     loadArchivesFromCloud().then((cloudArchives) => {
-      if (cloudArchives && cloudArchives.length > 0) setArchives(cloudArchives);
+      if (cloudArchives) setArchives(cloudArchives);
     });
     loadTemplatesFromCloud().then((cloudTemplates) => {
-      if (cloudTemplates && cloudTemplates.length > 0) setTemplates(cloudTemplates);
+      if (cloudTemplates) setTemplates(cloudTemplates);
     });
     loadProposalsFromCloud().then((cloudProposals) => {
-      if (cloudProposals && cloudProposals.length > 0) setProposals(cloudProposals);
+      if (cloudProposals) setProposals(cloudProposals);
     });
     loadBannerConfigFromCloud().then((cloudBanner) => {
       if (cloudBanner) setBannerConfig(cloudBanner);
