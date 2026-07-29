@@ -645,7 +645,7 @@ export default function App() {
                     if (uStr) {
                       const u = JSON.parse(uStr);
                       const role = (u.role || '').toLowerCase();
-                      isUserAdmin = role.includes('officer') || role.includes('admin') || role.includes('administrator');
+                      isUserAdmin = role.includes('officer') || role.includes('admin') || role.includes('administrator') || role.includes('kepala bagian');
                     }
                   } catch {
                     isUserAdmin = true;

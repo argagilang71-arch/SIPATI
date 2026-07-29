@@ -484,7 +484,7 @@ function applyDigitalStamp() {
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 backdrop-blur-md rounded-full text-xs font-semibold text-cyan-300 border border-cyan-400/30 mb-3">
             <span className="material-symbols-outlined text-sm text-cyan-300">cloud_sync</span>
-            Deployment Center Google Apps Script (Khusus Admin)
+            Deployment Center Google Apps Script
           </div>
           <h2 className="font-['Lora',serif] text-2xl md:text-3xl font-bold mb-2 text-white">
             Kode Integrasi Google Apps Script (GAS)

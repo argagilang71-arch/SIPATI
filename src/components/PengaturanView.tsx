@@ -15,6 +15,12 @@ import {
 import { TeamMember, BannerConfig } from '../types';
 import { BannerEditModal } from './BannerEditModal';
 import { safeSetLocalStorage, compressProfileImage } from '../utils/storageUtils';
+import {
+  normalizeTeamMembers,
+  getRoleForJabatan,
+  savePersistentCustomPhoto,
+  getPersistentCustomPhoto,
+} from '../utils/userUtils';
 
 interface PengaturanViewProps {
   requireLogin?: boolean;
@@ -79,8 +85,22 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
       const savedUser = localStorage.getItem('sipati_current_user');
       if (savedUser) {
         const parsed = JSON.parse(savedUser);
+        if (
+          parsed.nama?.toLowerCase().includes('gilang') ||
+          parsed.nip?.includes('199403162016091001') ||
+          parsed.username === '197805122003121002' ||
+          parsed.username === 'gilang.admin'
+        ) {
+          parsed.nama = 'Gilang Ariesta Arga, S.IP';
+          parsed.nip = '199403162016091001';
+          if (!parsed.jabatan) parsed.jabatan = 'Kepala Bagian Tata Pemerintahan';
+          if (!parsed.subBagian) parsed.subBagian = 'Kepala Bagian Tata Pemerintahan';
+          if (!parsed.role) parsed.role = 'Officer / Administrator';
+          localStorage.setItem('sipati_current_user', JSON.stringify(parsed));
+        }
         setCurrentUser(parsed);
-        let photo = parsed.foto || parsed.avatar || parsed.photo;
+
+        let photo = getPersistentCustomPhoto([parsed.username, parsed.nip, parsed.id]) || parsed.foto || parsed.avatar || parsed.photo;
 
         if (!photo) {
           const savedMembersStr = localStorage.getItem('sipati_team_members');
@@ -93,7 +113,7 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
                 (mem.username && parsed.username && mem.username.toLowerCase() === parsed.username.toLowerCase())
             );
             if (m) {
-              photo = m.foto || m.avatar || m.photo;
+              photo = getPersistentCustomPhoto([m.username, m.nip, m.id]) || m.foto || m.avatar || m.photo;
             }
           }
         }
@@ -127,6 +147,10 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
       const newPassword = profilePassword.trim() || userObj.password || 'user123';
 
       const origUsername = userObj.originalUsername || userObj.username;
+
+      // Save custom photo to persistent storage
+      savePersistentCustomPhoto([newUsername, userObj.nip, userObj.id, origUsername], finalPhoto);
+
       const updatedUserObj = {
         ...userObj,
         nama: newNama,
@@ -174,11 +198,11 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
           id: userObj.id || `m-${Date.now()}`,
           nama: newNama,
           nip: userObj.nip || '19800101 200501 1 001',
-          jabatan: userObj.jabatan || 'Staf / Analis Kebijakan',
-          subBagian: userObj.subBagian || 'Analis Kebijakan',
+          jabatan: userObj.jabatan || 'Kepala Bagian Tata Pemerintahan',
+          subBagian: userObj.subBagian || 'Kepala Bagian Tata Pemerintahan',
           username: newUsername,
           password: newPassword,
-          role: userObj.role || 'Analis Kebijakan',
+          role: userObj.role || 'Officer / Administrator',
           foto: finalPhoto,
           avatar: finalPhoto,
           photo: finalPhoto,
@@ -187,8 +211,9 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
         updatedList.push(newMember);
       }
 
-      setAnggotaList(updatedList);
-      await saveTeamMembersToCloud(updatedList);
+      const normalizedList = normalizeTeamMembers(updatedList);
+      setAnggotaList(normalizedList);
+      await saveTeamMembersToCloud(normalizedList);
 
       // 3. Dispatch user & team members update events for live UI reactivity
       window.dispatchEvent(new Event('sipati_user_updated'));
@@ -212,11 +237,12 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
   const isOfficer =
     !requireLogin ||
     !currentUser ||
-    (currentUser.role &&
-      (currentUser.role.toLowerCase().includes('officer') ||
-        currentUser.role.toLowerCase().includes('admin'))) ||
-    currentUser.username === 'admin' ||
-    currentUser.username === '197805122003121002';
+    Boolean(
+      currentUser.role &&
+        (currentUser.role.toLowerCase().includes('officer') ||
+          currentUser.role.toLowerCase().includes('admin') ||
+          currentUser.role.toLowerCase().includes('kepala bagian'))
+    );
 
   // Daftar Anggota, NIP, Username & Password
   const [anggotaList, setAnggotaList] = useState<TeamMember[]>([
@@ -228,7 +254,7 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
       subBagian: 'Kepala Bagian Tata Pemerintahan',
       username: 'gilang.admin',
       password: 'admin12345',
-      role: 'Officer / Administrator',
+      role: 'Admin',
     },
     {
       id: 'acc-erik',
@@ -238,27 +264,27 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
       subBagian: 'Analis Kebijakan Ahli Muda',
       username: 'erik.2',
       password: 'user2',
-      role: 'Analis Kebijakan',
+      role: 'User',
     },
     {
       id: 'acc-faisal',
       nama: 'Faisal Hadi Jaya, S.E, M.Si',
       nip: '196812111996031007',
-      jabatan: 'Analis Kebijakan Ahli Pertama',
-      subBagian: 'Analis Kebijakan Ahli Pertama',
+      jabatan: 'Kepala Bagian Tata Pemerintahan',
+      subBagian: 'Kepala Bagian Tata Pemerintahan',
       username: 'faisal.hadi1',
       password: 'user123',
-      role: 'Analis Kebijakan',
+      role: 'User',
     },
     {
       id: 'officer-main',
-      nama: 'Gilang arga',
-      nip: '19780512 200312 1 002',
-      jabatan: 'Analis Kebijakan Ahli Muda / Administrator',
-      subBagian: 'Subbagian Tata Usaha & Kearsipan',
+      nama: 'Gilang Ariesta Arga, S.IP',
+      nip: '199403162016091001',
+      jabatan: 'Kepala Bagian Tata Pemerintahan',
+      subBagian: 'Kepala Bagian Tata Pemerintahan',
       username: '197805122003121002',
       password: 'admin123',
-      role: 'Officer / Administrator',
+      role: 'Admin',
     },
     {
       id: 'm-1',
@@ -268,7 +294,7 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
       subBagian: 'Kepala Bagian Tata Pemerintahan',
       username: 'mulyadi',
       password: 'admin123',
-      role: 'Officer / Administrator',
+      role: 'Admin',
     },
   ]);
 
@@ -278,11 +304,11 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
   const [memberForm, setMemberForm] = useState<Omit<TeamMember, 'id'>>({
     nama: '',
     nip: '',
-    jabatan: '',
-    subBagian: 'Analis Kebijakan Ahli Muda',
+    jabatan: 'Penelaah Teknis Kebijakan',
+    subBagian: 'Penelaah Teknis Kebijakan',
     username: '',
     password: '',
-    role: 'Analis Kebijakan',
+    role: 'User',
   });
 
   // Load persisted settings and members from cloud on mount
@@ -376,10 +402,10 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
     setMemberForm({
       nama: '',
       nip: '',
-      jabatan: '',
-      subBagian: 'Analis Kebijakan Ahli Muda',
+      jabatan: 'Penelaah Teknis Kebijakan',
+      subBagian: 'Penelaah Teknis Kebijakan',
       username: '',
-      password: 'user123',
+      password: '',
       role: 'Analis Kebijakan',
     });
     setIsMemberModalOpen(true);
@@ -387,22 +413,24 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
 
   const handleOpenEditMember = (m: TeamMember) => {
     setEditingMemberId(m.id);
+    const formalJabatan = m.jabatan || m.subBagian || 'Penelaah Teknis Kebijakan';
     setMemberForm({
       nama: m.nama,
       nip: m.nip,
-      jabatan: m.jabatan,
-      subBagian: m.subBagian,
+      jabatan: formalJabatan,
+      subBagian: formalJabatan,
       username: m.username,
-      password: m.password || 'user123',
-      role: m.role || 'Analis Kebijakan',
+      password: m.password || '',
+      role: m.role || getRoleForJabatan(formalJabatan),
     });
     setIsMemberModalOpen(true);
   };
 
   const handleDeleteMember = (id: string) => {
     const newList = anggotaList.filter((m) => m.id !== id);
-    setAnggotaList(newList);
-    saveTeamMembersToCloud(newList);
+    const normalized = normalizeTeamMembers(newList);
+    setAnggotaList(normalized);
+    saveTeamMembersToCloud(normalized);
   };
 
   const handleSaveMember = (e: React.FormEvent) => {
@@ -425,8 +453,27 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
       newList = [...anggotaList, newMember];
     }
 
-    setAnggotaList(newList);
-    saveTeamMembersToCloud(newList);
+    const normalizedList = normalizeTeamMembers(newList);
+    setAnggotaList(normalizedList);
+    saveTeamMembersToCloud(normalizedList);
+
+    // If edited member is current user, update active user session in localStorage
+    if (currentUser) {
+      const updatedSelf = normalizedList.find(
+        (m) =>
+          (currentUser.id && m.id === currentUser.id) ||
+          (currentUser.username && m.username && m.username.toLowerCase() === currentUser.username.toLowerCase()) ||
+          (currentUser.nip && m.nip && m.nip.replace(/\s+/g, '') === currentUser.nip.replace(/\s+/g, ''))
+      );
+      if (updatedSelf) {
+        const mergedSelf = { ...currentUser, ...updatedSelf };
+        safeSetLocalStorage('sipati_current_user', JSON.stringify(mergedSelf));
+        setCurrentUser(mergedSelf);
+        window.dispatchEvent(new Event('sipati_user_updated'));
+      }
+    }
+
+    window.dispatchEvent(new Event('sipati_team_members_updated'));
     setIsMemberModalOpen(false);
   };
 
@@ -687,7 +734,7 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
-                Nama Instansi / Satuan Kerja {!isOfficer && <span className="text-amber-400 font-normal">(Terunci)</span>}
+                Nama Instansi / Satuan Kerja
               </label>
               <input
                 type="text"
@@ -702,7 +749,7 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
 
             <div>
               <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
-                Nama Pejabat Penanggung Jawab {!isOfficer && <span className="text-amber-400 font-normal">(Khusus Admin)</span>}
+                Nama Pejabat Penanggung Jawab
               </label>
               <input
                 type="text"
@@ -717,7 +764,7 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
 
             <div>
               <label className="block font-['Inter',sans-serif] font-semibold text-[11px] uppercase text-cyan-300 mb-1">
-                NIP / ID Pejabat Penanggung Jawab {!isOfficer && <span className="text-amber-400 font-normal">(Khusus Admin)</span>}
+                NIP / ID Pejabat Penanggung Jawab
               </label>
               <input
                 type="text"
@@ -837,18 +884,16 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
             <div>
               <h3 className="font-['Lora',serif] text-[16px] font-bold text-white flex items-center gap-2">
                 <span className="material-symbols-outlined text-sm text-cyan-300">campaign</span>
-                Pengaturan Banner Pengumuman Dashboard (Khusus Admin)
+                Pengaturan Banner Pengumuman Dashboard
               </h3>
               <p className="text-xs text-gray-300 mt-0.5">
                 Konfigurasi pesan pengumuman, headline, tautan, dan gambar yang tampil di bagian atas halaman utama Dashboard.
               </p>
             </div>
-            {isOfficer ? (
+            {isOfficer && (
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-400/50 self-start sm:self-auto">
                 Akses Admin Aktif
               </span>
-            ) : (
-              <span className="text-amber-400 font-semibold text-xs">(Khusus Admin)</span>
             )}
           </div>
 
@@ -962,9 +1007,21 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
                       </td>
                       <td className="p-3">
                         <div className="text-gray-200 font-medium">{member.jabatan}</div>
-                        <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-950/60 text-cyan-200 border border-cyan-400/40">
-                          {member.role || 'Analis Kebijakan'}
-                        </span>
+                        {(() => {
+                          const rLower = (member.role || '').toLowerCase();
+                          const isAdminRole = rLower.includes('admin') || rLower.includes('officer') || rLower.includes('kepala bagian');
+                          return (
+                            <span
+                              className={`inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                isAdminRole
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-400/50'
+                                  : 'bg-cyan-950/60 text-cyan-200 border border-cyan-400/40'
+                              }`}
+                            >
+                              {isAdminRole ? 'Admin' : 'User'}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="p-3 font-mono font-bold text-cyan-300 bg-white/5">
                         {member.username}
@@ -1392,7 +1449,13 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
                     PERAN / PERIZINAN HAK AKSES
                   </label>
                   <select
-                    value={memberForm.role}
+                    value={
+                      (memberForm.role || '').toLowerCase().includes('admin') ||
+                      (memberForm.role || '').toLowerCase().includes('officer') ||
+                      (memberForm.role || '').toLowerCase().includes('kepala bagian')
+                        ? 'Admin'
+                        : 'User'
+                    }
                     onChange={(e) =>
                       setMemberForm({
                         ...memberForm,
@@ -1401,9 +1464,8 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
                     }
                     className="w-full px-3 py-1.5 bg-[#002845] border border-white/20 rounded-lg text-xs text-white font-medium outline-none cursor-pointer"
                   >
-                    <option value="Officer / Administrator">Officer / Administrator</option>
-                    <option value="Analis Kebijakan">Analis Kebijakan</option>
-                    <option value="Staf Operasional">Staf Operasional</option>
+                    <option value="Admin">Admin</option>
+                    <option value="User">User</option>
                   </select>
                 </div>
               </div>
@@ -1413,13 +1475,15 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
                   JABATAN / SUB-BAGIAN FORMAL
                 </label>
                 <select
-                  value={memberForm.subBagian}
+                  value={memberForm.subBagian || memberForm.jabatan}
                   onChange={(e) => {
                     const selected = e.target.value;
+                    const autoRole = getRoleForJabatan(selected);
                     setMemberForm({
                       ...memberForm,
                       subBagian: selected,
-                      jabatan: memberForm.jabatan ? memberForm.jabatan : selected,
+                      jabatan: selected,
+                      role: autoRole,
                     });
                   }}
                   className="w-full px-3.5 py-2 bg-[#002845] border border-white/20 rounded-xl text-xs text-white font-medium focus:border-[#00a3e0] outline-none cursor-pointer"

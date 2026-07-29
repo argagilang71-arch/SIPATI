@@ -62,7 +62,7 @@ export interface TeamMember {
   subBagian?: string;
   username: string;
   password?: string;
-  role: 'Officer / Administrator' | 'Analis Kebijakan' | 'Staf Operasional' | string;
+  role: 'Officer / Administrator' | 'Kepala Bagian Tata Pemerintahan' | 'Analis Kebijakan' | 'Staf Operasional' | string;
   foto?: string;
   avatar?: string;
   photo?: string;

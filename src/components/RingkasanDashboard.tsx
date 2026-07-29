@@ -49,7 +49,7 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
     if (uStr) {
       const u = JSON.parse(uStr);
       const role = (u.role || '').toLowerCase();
-      isAdmin = role.includes('officer') || role.includes('admin') || role.includes('administrator');
+      isAdmin = role.includes('officer') || role.includes('admin') || role.includes('administrator') || role.includes('kepala bagian');
     }
   } catch {
     isAdmin = true;

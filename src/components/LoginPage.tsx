@@ -8,6 +8,7 @@ import {
   loadSettingsFromCloud,
 } from '../utils/firebaseSync';
 import { safeSetLocalStorage } from '../utils/storageUtils';
+import { normalizeTeamMembers, getPersistentCustomPhoto } from '../utils/userUtils';
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -114,8 +115,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     safeSetLocalStorage('sipati_team_members', JSON.stringify(mergedMembers));
 
     // Official admin officer account
-    const officerName = savedAdminName || 'Gilang arga';
-    const officerNip = savedAdminNip || '19780512 200312 1 002';
+    const officerName = savedAdminName || 'Gilang Ariesta Arga, S.IP';
+    const officerNip = savedAdminNip || '199403162016091001';
 
     // Default fallback accounts list matching system defaults
     const PRESET_DEFAULT_AVATARS = [
@@ -130,10 +131,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         nama: 'Gilang Ariesta Arga, S.IP',
         nip: '199403162016091001',
         jabatan: 'Kepala Bagian Tata Pemerintahan',
-        subBagian: 'Bagian Tata Pemerintahan',
+        subBagian: 'Kepala Bagian Tata Pemerintahan',
         username: 'gilang.admin',
         password: 'admin12345',
-        role: 'Officer / Administrator',
+        role: 'Admin',
         foto: PRESET_DEFAULT_AVATARS[0],
         avatar: PRESET_DEFAULT_AVATARS[0],
       },
@@ -142,10 +143,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         nama: 'Singgih Erik Rudiana, S.STP, M.A.P',
         nip: '19860920 200904 2 005',
         jabatan: 'Analis Kebijakan Ahli Muda',
-        subBagian: 'Subbagian Tata Usaha & Kearsipan',
+        subBagian: 'Analis Kebijakan Ahli Muda',
         username: 'erik.2',
         password: 'user2',
-        role: 'Analis Kebijakan',
+        role: 'User',
         foto: PRESET_DEFAULT_AVATARS[1],
         avatar: PRESET_DEFAULT_AVATARS[1],
       },
@@ -153,11 +154,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         id: 'acc-faisal',
         nama: 'Faisal Hadi Jaya, S.E, M.Si',
         nip: '196812111996031007',
-        jabatan: 'Analis Kebijakan Ahli Pertama',
-        subBagian: 'Subbagian Tata Usaha & Kearsipan',
+        jabatan: 'Kepala Bagian Tata Pemerintahan',
+        subBagian: 'Kepala Bagian Tata Pemerintahan',
         username: 'faisal.hadi1',
         password: 'user123',
-        role: 'Analis Kebijakan',
+        role: 'User',
         foto: PRESET_DEFAULT_AVATARS[2],
         avatar: PRESET_DEFAULT_AVATARS[2],
       },
@@ -165,11 +166,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         id: 'officer-main',
         nama: officerName,
         nip: officerNip,
-        jabatan: 'Analis Kebijakan Ahli Muda / Administrator',
-        subBagian: 'Subbagian Tata Usaha & Kearsipan',
+        jabatan: 'Kepala Bagian Tata Pemerintahan',
+        subBagian: 'Kepala Bagian Tata Pemerintahan',
         username: '197805122003121002',
         password: 'admin123',
-        role: 'Officer / Administrator',
+        role: 'Admin',
         foto: PRESET_DEFAULT_AVATARS[0],
         avatar: PRESET_DEFAULT_AVATARS[0],
       },
@@ -181,14 +182,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         subBagian: 'Kepala Bagian Tata Pemerintahan',
         username: 'mulyadi',
         password: 'admin123',
-        role: 'Officer / Administrator',
+        role: 'Admin',
         foto: PRESET_DEFAULT_AVATARS[0],
         avatar: PRESET_DEFAULT_AVATARS[0],
       },
     ];
 
     // Build final active accounts list where mergedMembers REPLACES defaultAccounts and purges duplicates
-    const allAccounts: TeamMember[] = [...defaultAccounts];
+    let rawAccounts: TeamMember[] = [...defaultAccounts];
 
     mergedMembers.forEach((customMem) => {
       const customId = customMem.id;
@@ -197,7 +198,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       const origUsername = (customMem.originalUsername || '').replace(/\s+/g, '').toLowerCase();
 
       const matchingIndices: number[] = [];
-      allAccounts.forEach((acc, idx) => {
+      rawAccounts.forEach((acc, idx) => {
         const accId = acc.id;
         const accNip = (acc.nip || '').replace(/\s+/g, '').toLowerCase();
         const accUsername = (acc.username || '').replace(/\s+/g, '').toLowerCase();
@@ -214,20 +215,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       if (matchingIndices.length > 0) {
         // Update first matching index with custom user credentials and photo
         const firstIdx = matchingIndices[0];
-        allAccounts[firstIdx] = {
-          ...allAccounts[firstIdx],
+        rawAccounts[firstIdx] = {
+          ...rawAccounts[firstIdx],
           ...customMem,
-          foto: customMem.foto || customMem.avatar || customMem.photo || allAccounts[firstIdx].foto,
-          avatar: customMem.avatar || customMem.foto || customMem.photo || allAccounts[firstIdx].avatar,
+          foto: customMem.foto || customMem.avatar || customMem.photo || rawAccounts[firstIdx].foto,
+          avatar: customMem.avatar || customMem.foto || customMem.photo || rawAccounts[firstIdx].avatar,
         };
         // Purge remaining duplicate default entries so old passwords/usernames cannot match
         for (let i = matchingIndices.length - 1; i > 0; i--) {
-          allAccounts.splice(matchingIndices[i], 1);
+          rawAccounts.splice(matchingIndices[i], 1);
         }
       } else {
-        allAccounts.push(customMem);
+        rawAccounts.push(customMem);
       }
     });
+
+    const allAccounts = normalizeTeamMembers(rawAccounts);
 
     // Find registered user by Username, NIP, or Full Name with STRICT password verification
     const matchedUser = allAccounts.find((m) => {
@@ -255,7 +258,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     if (matchedUser) {
       setErrorMsg('');
       try {
-        let userPhoto = matchedUser.foto || matchedUser.avatar || matchedUser.photo;
+        let userPhoto =
+          getPersistentCustomPhoto([matchedUser.username, matchedUser.nip, matchedUser.id]) ||
+          matchedUser.foto ||
+          matchedUser.avatar ||
+          matchedUser.photo;
 
         // If matched account photo is missing, recover from mergedMembers or previous session
         if (!userPhoto) {

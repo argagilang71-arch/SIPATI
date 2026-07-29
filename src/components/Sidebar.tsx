@@ -30,9 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         return (
           role.includes('officer') ||
           role.includes('admin') ||
-          username === 'admin' ||
-          username === 'gilang.admin' ||
-          username === '197805122003121002'
+          role.includes('kepala bagian')
         );
       }
     } catch (e) {

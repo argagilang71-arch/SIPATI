@@ -53,7 +53,7 @@ export const DashboardBanner: React.FC<DashboardBannerProps> = ({
         <div className="bg-[#051124] border border-dashed border-cyan-500/30 rounded-2xl p-3 flex items-center justify-between text-xs text-gray-400 font-['Inter',sans-serif]">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-cyan-400 text-sm">campaign</span>
-            <span>Banner Slide Foto saat ini Non-Aktif. (Khusus Admin)</span>
+            <span>Banner Slide Foto saat ini Non-Aktif.</span>
           </div>
           {onOpenEditModal && (
             <button
@@ -151,7 +151,7 @@ export const DashboardBanner: React.FC<DashboardBannerProps> = ({
             type="button"
             onClick={onOpenEditModal}
             className="px-3 py-1.5 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-cyan-400/40 text-cyan-300 hover:text-white rounded-xl text-xs font-bold transition shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95"
-            title="Pengaturan Foto Banner (Khusus Admin)"
+            title="Pengaturan Foto Banner"
           >
             <span className="material-symbols-outlined text-sm text-cyan-400">edit</span>
             <span>Setting Banner</span>

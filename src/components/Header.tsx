@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getStoredNotifications } from '../utils/activityNotificationStore';
+import { getPersistentCustomPhoto } from '../utils/userUtils';
 
 interface HeaderProps {
   onToggleMobileSidebar: () => void;
@@ -57,7 +58,8 @@ export const Header: React.FC<HeaderProps> = ({
     };
   }, []);
 
-  const userAvatar = currentUser?.foto || currentUser?.avatar || currentUser?.photo || defaultAdminAvatar;
+  const persistentPhoto = getPersistentCustomPhoto([currentUser?.username, currentUser?.nip, currentUser?.id]);
+  const userAvatar = persistentPhoto || currentUser?.foto || currentUser?.avatar || currentUser?.photo || defaultAdminAvatar;
 
   return (
     <header className="h-16 fixed top-0 right-0 md:left-[250px] left-0 z-20 bg-black/40 backdrop-blur-md border-b border-white/15 text-white flex justify-between items-center px-4 sm:px-[34px] w-full md:w-[calc(100%-250px)]">
@@ -144,10 +146,10 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2.5 ml-1">
             <div className="hidden sm:flex flex-col text-right">
               <span className="text-[12px] font-bold text-white truncate max-w-[150px]">
-                {currentUser?.nama || 'Drs. H. Mulyadi, M.Si'}
+                {currentUser?.nama || 'Gilang Ariesta Arga, S.IP'}
               </span>
               <span className="text-[10px] text-cyan-300 font-medium">
-                {currentUser?.role || 'Officer / Administrator'}
+                {currentUser?.role || currentUser?.jabatan || 'Kepala Bagian Tata Pemerintahan'}
               </span>
             </div>
             <div

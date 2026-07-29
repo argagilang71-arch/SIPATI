@@ -1,0 +1,100 @@
+{
+  "entities": {
+    "TeamMember": {
+      "title": "TeamMember",
+      "description": "Team member user record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nama": { "type": "string" },
+        "nip": { "type": "string" },
+        "jabatan": { "type": "string" },
+        "subBagian": { "type": "string" },
+        "username": { "type": "string" },
+        "role": { "type": "string" }
+      }
+    },
+    "BannerConfig": {
+      "title": "BannerConfig",
+      "description": "Dashboard banner settings",
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "title": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    },
+    "TaskItem": {
+      "title": "TaskItem",
+      "description": "Work items and tasks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
+    "ArchiveItem": {
+      "title": "ArchiveItem",
+      "description": "Digital archives and documents",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nomorSurat": { "type": "string" },
+        "perihal": { "type": "string" }
+      }
+    },
+    "TemplateItem": {
+      "title": "TemplateItem",
+      "description": "Official letter templates",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" }
+      }
+    },
+    "ProposalItem": {
+      "title": "ProposalItem",
+      "description": "Document proposals",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/sipati_config/team_members": {
+      "schema": { "$ref": "#/entities/TeamMember" },
+      "description": "Team members list"
+    },
+    "/sipati_config/banner": {
+      "schema": { "$ref": "#/entities/BannerConfig" },
+      "description": "Dashboard banner configuration"
+    },
+    "/sipati_config/tasks": {
+      "schema": { "$ref": "#/entities/TaskItem" },
+      "description": "Task items list"
+    },
+    "/sipati_config/archives": {
+      "schema": { "$ref": "#/entities/ArchiveItem" },
+      "description": "Digital archives list"
+    },
+    "/sipati_config/templates": {
+      "schema": { "$ref": "#/entities/TemplateItem" },
+      "description": "Document templates"
+    },
+    "/sipati_config/proposals": {
+      "schema": { "$ref": "#/entities/ProposalItem" },
+      "description": "Document proposals"
+    },
+    "/sipati_config/settings": {
+      "schema": { "type": "object" },
+      "description": "System settings"
+    },
+    "/sipati_cloud_files/{fileId}": {
+      "schema": { "type": "object" },
+      "description": "Binary uploaded cloud files"
+    }
+  }
+}
