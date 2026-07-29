@@ -92,6 +92,14 @@
       "schema": { "type": "object" },
       "description": "System settings"
     },
+    "/sipati_config/notifications": {
+      "schema": { "type": "object" },
+      "description": "Realtime system notifications"
+    },
+    "/sipati_config/activity_logs": {
+      "schema": { "type": "object" },
+      "description": "Realtime activity logs across users"
+    },
     "/sipati_cloud_files/{fileId}": {
       "schema": { "type": "object" },
       "description": "Binary uploaded cloud files"

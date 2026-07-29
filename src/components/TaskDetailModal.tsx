@@ -30,22 +30,35 @@ const ReceiptPhotoItem: React.FC<{
     let active = true;
     let url: string | null = null;
 
-    getStoredFileBlob(fileName).then((res) => {
-      if (!active) return;
-      if (res && res.blob) {
-        if (res.mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileName)) {
-          url = URL.createObjectURL(res.blob);
-          setImgUrl(url);
+    const loadImg = () => {
+      getStoredFileBlob(fileName).then((res) => {
+        if (!active) return;
+        if (res && res.blob) {
+          if (res.mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileName)) {
+            if (url) URL.revokeObjectURL(url);
+            url = URL.createObjectURL(res.blob);
+            setImgUrl(url);
+            setIsImage(true);
+          }
+        } else if (/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileName)) {
           setIsImage(true);
         }
-      } else if (/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileName)) {
-        setIsImage(true);
+      });
+    };
+
+    loadImg();
+
+    const handleCloudUploaded = (e: any) => {
+      if (e?.detail?.fileName && e.detail.fileName.toLowerCase().trim() === fileName.toLowerCase().trim()) {
+        loadImg();
       }
-    });
+    };
+    window.addEventListener('sipati_cloud_file_uploaded', handleCloudUploaded);
 
     return () => {
       active = false;
       if (url) URL.revokeObjectURL(url);
+      window.removeEventListener('sipati_cloud_file_uploaded', handleCloudUploaded);
     };
   }, [fileName]);
 

@@ -1,7 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { TeamMember, TaskItem, ArchiveItem, TemplateItem, ProposalItem, BannerConfig } from '../types';
+import { TeamMember, TaskItem, ArchiveItem, TemplateItem, ProposalItem, BannerConfig, NotificationItem, ActivityLogItem } from '../types';
 import { safeSetLocalStorage } from './storageUtils';
 import { normalizeTeamMembers } from './userUtils';
 
@@ -33,6 +33,8 @@ const TASKS_DOC_PATH = ['sipati_config', 'tasks'] as const;
 const ARCHIVES_DOC_PATH = ['sipati_config', 'archives'] as const;
 const TEMPLATES_DOC_PATH = ['sipati_config', 'templates'] as const;
 const PROPOSALS_DOC_PATH = ['sipati_config', 'proposals'] as const;
+const NOTIFS_DOC_PATH = ['sipati_config', 'notifications'] as const;
+const LOGS_DOC_PATH = ['sipati_config', 'activity_logs'] as const;
 
 export const DEFAULT_BANNER_CONFIG: BannerConfig = {
   enabled: true,
@@ -85,7 +87,6 @@ function shouldSkipCloudSave(key: string, data: any): boolean {
     if (lastSavedCache[key] === stringified) {
       return true;
     }
-    lastSavedCache[key] = stringified;
     return false;
   } catch (e) {
     return false;
@@ -104,7 +105,8 @@ function updateCloudCache(key: string, data: any) {
 async function scheduleDebouncedCloudWrite(
   key: string,
   writeTask: () => Promise<void>,
-  delayMs: number = 300
+  delayMs: number = 300,
+  dataToCacheOnSuccess?: any
 ): Promise<boolean> {
   if (!db || isResourceExhausted) return false;
 
@@ -126,6 +128,9 @@ async function scheduleDebouncedCloudWrite(
       const currentPromise = (async () => {
         try {
           await writeTask();
+          if (dataToCacheOnSuccess !== undefined) {
+            updateCloudCache(key, dataToCacheOnSuccess);
+          }
           return true;
         } catch (err: any) {
           const errMsg = err?.message || String(err);
@@ -782,7 +787,8 @@ export async function saveFileToCloud(
         }));
       }
       console.log(`✅ Binary file "${fileName}" stored in Cloud Firestore.`);
-    }, 500);
+      window.dispatchEvent(new CustomEvent('sipati_cloud_file_uploaded', { detail: { fileName } }));
+    }, 500, base64);
   } catch (err) {
     console.warn(`Could not sync file "${fileName}" to Cloud Firestore:`, err);
     return false;
@@ -793,16 +799,17 @@ export async function saveFileToCloud(
  * Retrieves a file's exact binary content from Cloud Firestore across any device or account
  */
 export async function loadFileFromCloud(fileName: string): Promise<{ blob: Blob; fileName: string; mimeType: string } | null> {
-  if (!db) return null;
+  if (!db || !fileName) return null;
   try {
-    const safeDocId = fileName.toLowerCase().replace(/[\/\\:#?%*"'<>|]/g, '_').substring(0, 100);
+    const trimmed = fileName.trim();
+    const safeDocId = trimmed.toLowerCase().replace(/[\/\\:#?%*"'<>|]/g, '_').substring(0, 100);
     const docRef = doc(db, 'sipati_cloud_files', safeDocId);
     let snap = await getDoc(docRef);
 
     if (!snap.exists()) {
-      const cleanName = fileName.replace(/[\/\\:*?"<>|]/g, '_').toLowerCase();
+      const cleanName = trimmed.replace(/[\/\\:*?"<>|]/g, '_').toLowerCase();
       const altDocId = cleanName.substring(0, 100);
-      snap = await getDoc(doc(docRef.firestore, 'sipati_cloud_files', altDocId));
+      snap = await getDoc(doc(db, 'sipati_cloud_files', altDocId));
     }
 
     if (snap.exists()) {
@@ -828,4 +835,128 @@ export async function loadFileFromCloud(fileName: string): Promise<{ blob: Blob;
     console.warn(`Could not load file "${fileName}" from Cloud Firestore:`, err);
   }
   return null;
+}
+
+/**
+ * Saves Notifications to Cloud Firestore and LocalStorage
+ */
+export async function saveNotificationsToCloud(notifs: NotificationItem[]): Promise<boolean> {
+  try {
+    localStorage.setItem('sipati_notifications', JSON.stringify(notifs));
+  } catch (e) {
+    console.warn(e);
+  }
+
+  if (!db) return false;
+  if (shouldSkipCloudSave('notifications', notifs)) return true;
+
+  return scheduleDebouncedCloudWrite('notifications', async () => {
+    const docRef = doc(db, NOTIFS_DOC_PATH[0], NOTIFS_DOC_PATH[1]);
+    await setDoc(docRef, cleanForFirestore({ notifications: notifs, updatedAt: new Date().toISOString() }));
+  }, 300, notifs);
+}
+
+/**
+ * Loads Notifications from Cloud Firestore
+ */
+export async function loadNotificationsFromCloud(): Promise<NotificationItem[] | null> {
+  if (db) {
+    try {
+      const docRef = doc(db, NOTIFS_DOC_PATH[0], NOTIFS_DOC_PATH[1]);
+      const snap = await getDoc(docRef);
+      if (snap.exists() && snap.data()?.notifications) {
+        const cloudNotifs = snap.data().notifications as NotificationItem[];
+        if (Array.isArray(cloudNotifs)) {
+          updateCloudCache('notifications', cloudNotifs);
+          localStorage.setItem('sipati_notifications', JSON.stringify(cloudNotifs));
+          return cloudNotifs;
+        }
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+
+/**
+ * Subscribes to realtime Notifications updates across devices
+ */
+export function subscribeNotificationsCloud(onUpdate: (notifs: NotificationItem[]) => void) {
+  if (!db) return () => {};
+  try {
+    const docRef = doc(db, NOTIFS_DOC_PATH[0], NOTIFS_DOC_PATH[1]);
+    return onSnapshot(docRef, (snap) => {
+      if (snap.exists() && snap.data()?.notifications) {
+        const cloudNotifs = snap.data().notifications as NotificationItem[];
+        if (Array.isArray(cloudNotifs)) {
+          updateCloudCache('notifications', cloudNotifs);
+          localStorage.setItem('sipati_notifications', JSON.stringify(cloudNotifs));
+          onUpdate(cloudNotifs);
+        }
+      }
+    }, (err) => {});
+  } catch (err) {
+    return () => {};
+  }
+}
+
+/**
+ * Saves Activity Logs to Cloud Firestore and LocalStorage
+ */
+export async function saveActivityLogsToCloud(logs: ActivityLogItem[]): Promise<boolean> {
+  try {
+    localStorage.setItem('sipati_activity_logs', JSON.stringify(logs));
+  } catch (e) {
+    console.warn(e);
+  }
+
+  if (!db) return false;
+  if (shouldSkipCloudSave('activity_logs', logs)) return true;
+
+  return scheduleDebouncedCloudWrite('activity_logs', async () => {
+    const docRef = doc(db, LOGS_DOC_PATH[0], LOGS_DOC_PATH[1]);
+    await setDoc(docRef, cleanForFirestore({ logs, updatedAt: new Date().toISOString() }));
+  }, 300, logs);
+}
+
+/**
+ * Loads Activity Logs from Cloud Firestore
+ */
+export async function loadActivityLogsFromCloud(): Promise<ActivityLogItem[] | null> {
+  if (db) {
+    try {
+      const docRef = doc(db, LOGS_DOC_PATH[0], LOGS_DOC_PATH[1]);
+      const snap = await getDoc(docRef);
+      if (snap.exists() && snap.data()?.logs) {
+        const cloudLogs = snap.data().logs as ActivityLogItem[];
+        if (Array.isArray(cloudLogs)) {
+          updateCloudCache('activity_logs', cloudLogs);
+          localStorage.setItem('sipati_activity_logs', JSON.stringify(cloudLogs));
+          return cloudLogs;
+        }
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+
+/**
+ * Subscribes to realtime Activity Logs updates across devices
+ */
+export function subscribeActivityLogsCloud(onUpdate: (logs: ActivityLogItem[]) => void) {
+  if (!db) return () => {};
+  try {
+    const docRef = doc(db, LOGS_DOC_PATH[0], LOGS_DOC_PATH[1]);
+    return onSnapshot(docRef, (snap) => {
+      if (snap.exists() && snap.data()?.logs) {
+        const cloudLogs = snap.data().logs as ActivityLogItem[];
+        if (Array.isArray(cloudLogs)) {
+          updateCloudCache('activity_logs', cloudLogs);
+          localStorage.setItem('sipati_activity_logs', JSON.stringify(cloudLogs));
+          onUpdate(cloudLogs);
+        }
+      }
+    }, (err) => {});
+  } catch (err) {
+    return () => {};
+  }
 }

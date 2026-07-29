@@ -31,6 +31,8 @@ import {
   loadBannerConfigFromCloud,
   saveBannerConfigToCloud,
   subscribeBannerConfigCloud,
+  subscribeNotificationsCloud,
+  subscribeActivityLogsCloud,
   DEFAULT_BANNER_CONFIG,
 } from './utils/firebaseSync';
 
@@ -90,6 +92,18 @@ export default function App() {
     const unsubTemplates = subscribeTemplatesCloud((nextTemplates) => setTemplates(nextTemplates));
     const unsubProposals = subscribeProposalsCloud((nextProposals) => setProposals(nextProposals));
     const unsubBanner = subscribeBannerConfigCloud((nextBanner) => setBannerConfig(nextBanner));
+    const unsubNotifs = subscribeNotificationsCloud((nextNotifs) => {
+      try {
+        localStorage.setItem('sipati_notifications', JSON.stringify(nextNotifs));
+        window.dispatchEvent(new CustomEvent('sipati_notifications_updated', { detail: nextNotifs }));
+      } catch (e) {}
+    });
+    const unsubLogs = subscribeActivityLogsCloud((nextLogs) => {
+      try {
+        localStorage.setItem('sipati_activity_logs', JSON.stringify(nextLogs));
+        window.dispatchEvent(new CustomEvent('sipati_activity_logs_updated', { detail: nextLogs }));
+      } catch (e) {}
+    });
 
     // Also listen to local banner update events
     const handleLocalBannerUpdate = () => {
@@ -105,6 +119,8 @@ export default function App() {
       unsubTemplates();
       unsubProposals();
       unsubBanner();
+      unsubNotifs();
+      unsubLogs();
       window.removeEventListener('sipati_banner_updated', handleLocalBannerUpdate);
     };
   }, []);

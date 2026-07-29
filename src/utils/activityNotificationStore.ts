@@ -1,4 +1,5 @@
 import { NotificationItem, ActivityLogItem } from '../types';
+import { saveNotificationsToCloud, saveActivityLogsToCloud } from './firebaseSync';
 
 const NOTIFS_STORAGE_KEY = 'sipati_notifications';
 const LOGS_STORAGE_KEY = 'sipati_activity_logs';
@@ -86,6 +87,7 @@ export function saveNotifications(notifs: NotificationItem[]) {
   try {
     localStorage.setItem(NOTIFS_STORAGE_KEY, JSON.stringify(notifs));
     window.dispatchEvent(new CustomEvent('sipati_notifications_updated', { detail: notifs }));
+    saveNotificationsToCloud(notifs);
   } catch (e) {
     console.error(e);
   }
@@ -134,6 +136,7 @@ export function saveActivityLogs(logs: ActivityLogItem[]) {
   try {
     localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(logs));
     window.dispatchEvent(new CustomEvent('sipati_activity_logs_updated', { detail: logs }));
+    saveActivityLogsToCloud(logs);
   } catch (e) {
     console.error(e);
   }
