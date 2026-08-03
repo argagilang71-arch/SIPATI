@@ -369,6 +369,61 @@ export function subscribeSettingsCloud(onUpdate: (settings: any) => void) {
 }
 
 /**
+ * Merges cloud tasks and local tasks to ensure no uploaded files or status updates are lost
+ */
+export function mergeTasks(cloudTasks: TaskItem[], localTasks: TaskItem[]): TaskItem[] {
+  const map = new Map<string, TaskItem>();
+  const getKey = (t: TaskItem) => t.id || t.noSurat;
+
+  for (const lt of localTasks) {
+    if (lt && (lt.id || lt.noSurat)) {
+      map.set(getKey(lt), { ...lt });
+    }
+  }
+
+  for (const ct of cloudTasks) {
+    if (!ct || (!ct.id && !ct.noSurat)) continue;
+    const key = getKey(ct);
+    const existing = map.get(key);
+
+    if (!existing) {
+      map.set(key, { ...ct });
+    } else {
+      const draftPekerjaan = Array.from(
+        new Set([...(existing.draftPekerjaan || []), ...(ct.draftPekerjaan || [])])
+      );
+      const buktiDokumen = Array.from(
+        new Set([...(existing.buktiDokumen || []), ...(ct.buktiDokumen || [])])
+      );
+      const buktiSuratDiterima = Array.from(
+        new Set([...(existing.buktiSuratDiterima || []), ...(ct.buktiSuratDiterima || [])])
+      );
+
+      let finalStatus = existing.status || ct.status;
+      if (existing.status === 'SELESAI' || ct.status === 'SELESAI') {
+        finalStatus = 'SELESAI';
+      } else if (existing.status === 'PROSES' || ct.status === 'PROSES') {
+        finalStatus = 'PROSES';
+      }
+
+      map.set(key, {
+        ...ct,
+        ...existing,
+        title: existing.title || ct.title,
+        status: finalStatus,
+        draftPekerjaan,
+        buktiDokumen,
+        buktiSuratDiterima,
+        pj: existing.pj && existing.pj !== '—' ? existing.pj : ct.pj || existing.pj,
+        catatan: existing.catatan || ct.catatan,
+      });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+/**
  * Saves tasks to Cloud Firestore and LocalStorage
  */
 export async function saveTasksToCloud(tasks: TaskItem[]): Promise<boolean> {
@@ -383,13 +438,24 @@ export async function saveTasksToCloud(tasks: TaskItem[]): Promise<boolean> {
   return scheduleDebouncedCloudWrite('tasks', async () => {
     const docRef = doc(db, TASKS_DOC_PATH[0], TASKS_DOC_PATH[1]);
     await setDoc(docRef, cleanForFirestore({ tasks, updatedAt: new Date().toISOString() }));
-  }, 200);
+  }, 100);
 }
 
 /**
- * Loads tasks from Cloud Firestore with fallback to LocalStorage
+ * Loads tasks from Cloud Firestore with fallback to LocalStorage & intelligent merging
  */
 export async function loadTasksFromCloud(): Promise<TaskItem[] | null> {
+  let localTasks: TaskItem[] = [];
+  try {
+    const saved = localStorage.getItem('sipati_tasks');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        localTasks = parsed;
+      }
+    }
+  } catch (e) {}
+
   if (db) {
     try {
       const docRef = doc(db, TASKS_DOC_PATH[0], TASKS_DOC_PATH[1]);
@@ -397,16 +463,20 @@ export async function loadTasksFromCloud(): Promise<TaskItem[] | null> {
       if (snap.exists() && snap.data()?.tasks) {
         const cloudTasks = snap.data().tasks as TaskItem[];
         if (Array.isArray(cloudTasks)) {
-          localStorage.setItem('sipati_tasks', JSON.stringify(cloudTasks));
-          return cloudTasks;
+          const merged = mergeTasks(cloudTasks, localTasks);
+          localStorage.setItem('sipati_tasks', JSON.stringify(merged));
+          if (merged.length > cloudTasks.length || JSON.stringify(merged) !== JSON.stringify(cloudTasks)) {
+            scheduleDebouncedCloudWrite('tasks', async () => {
+              await setDoc(docRef, cleanForFirestore({ tasks: merged, updatedAt: new Date().toISOString() }));
+            }, 100);
+          }
+          return merged;
         }
       }
     } catch (e) {}
   }
-  try {
-    const saved = localStorage.getItem('sipati_tasks');
-    if (saved) return JSON.parse(saved);
-  } catch (e) {}
+
+  if (localTasks.length > 0) return localTasks;
   return null;
 }
 
@@ -421,8 +491,18 @@ export function subscribeTasksCloud(onUpdate: (tasks: TaskItem[]) => void) {
       if (snap.exists() && snap.data()?.tasks) {
         const cloudTasks = snap.data().tasks as TaskItem[];
         if (Array.isArray(cloudTasks)) {
-          localStorage.setItem('sipati_tasks', JSON.stringify(cloudTasks));
-          onUpdate(cloudTasks);
+          let localTasks: TaskItem[] = [];
+          try {
+            const saved = localStorage.getItem('sipati_tasks');
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed) && parsed.length > 0) localTasks = parsed;
+            }
+          } catch (e) {}
+
+          const merged = mergeTasks(cloudTasks, localTasks);
+          localStorage.setItem('sipati_tasks', JSON.stringify(merged));
+          onUpdate(merged);
         }
       }
     }, (err) => {});

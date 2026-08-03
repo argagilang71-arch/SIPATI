@@ -63,10 +63,46 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [requireLogin, setRequireLogin] = useState<boolean>(true);
 
-  const [tasks, setTasks] = useState<TaskItem[]>(INITIAL_TASKS);
-  const [archives, setArchives] = useState<ArchiveItem[]>(INITIAL_ARCHIVES);
-  const [templates, setTemplates] = useState<TemplateItem[]>(INITIAL_TEMPLATES);
-  const [proposals, setProposals] = useState<ProposalItem[]>(INITIAL_PROPOSALS);
+  const [tasks, setTasks] = useState<TaskItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('sipati_tasks');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_TASKS;
+  });
+  const [archives, setArchives] = useState<ArchiveItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('sipati_archives');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_ARCHIVES;
+  });
+  const [templates, setTemplates] = useState<TemplateItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('sipati_templates');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_TEMPLATES;
+  });
+  const [proposals, setProposals] = useState<ProposalItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('sipati_proposals');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_PROPOSALS;
+  });
   const [bannerConfig, setBannerConfig] = useState<BannerConfig>(DEFAULT_BANNER_CONFIG);
 
   // Helper to re-fetch all fresh data from Cloud Firestore across all devices
