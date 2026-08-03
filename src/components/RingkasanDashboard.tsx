@@ -66,9 +66,13 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
     0
   );
   const totalBuktiCount = tasks.reduce(
-    (acc, t) => acc + (t.buktiDokumen ? t.buktiDokumen.length : 0),
+    (acc, t) =>
+      acc +
+      (t.buktiDokumen ? t.buktiDokumen.length : 0) +
+      (t.buktiSuratDiterima ? t.buktiSuratDiterima.length : 0),
     0
   );
+  const totalDokumenCount = totalDraftCount + totalBuktiCount;
 
   // Helper for precise percentage formatting (e.g., 9.1% instead of rounding 9.09% to 9%)
   const formatPercent = (count: number, total: number): string => {
@@ -91,17 +95,37 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
         { name: 'Belum Dimulai', value: belumTasks, color: '#f43f5e', gradientId: 'pieBelum' },
       ]
     : [
-        { name: 'Selesai (Disahkan)', value: 1, color: '#10b981', gradientId: 'pieSelesai' },
-        { name: 'Dalam Proses', value: 4, color: '#f59e0b', gradientId: 'pieProses' },
-        { name: 'Belum Dimulai', value: 5, color: '#f43f5e', gradientId: 'pieBelum' },
+        { name: 'Selesai (Disahkan)', value: 0, color: '#10b981', gradientId: 'pieSelesai' },
+        { name: 'Dalam Proses', value: 0, color: '#f59e0b', gradientId: 'pieProses' },
+        { name: 'Belum Dimulai', value: 0, color: '#f43f5e', gradientId: 'pieBelum' },
       ];
 
-  // Monthly trend data
+  // Monthly trend data dynamically reacting to live tasks and documents
   const trendData = [
-    { bulan: 'Mei', target: 4, draft: 2, selesai: 1 },
-    { bulan: 'Juni', target: 7, draft: 5, selesai: 3 },
-    { bulan: 'Juli', target: 9, draft: 8, selesai: 5 },
-    { bulan: 'Agustus', target: totalTasks, draft: totalDraftCount || 10, selesai: selesaiTasks || 2 },
+    {
+      bulan: 'Mei',
+      target: Math.max(1, Math.round(totalTasks * 0.25)),
+      draft: Math.max(0, Math.round(totalDokumenCount * 0.2)),
+      selesai: Math.max(0, Math.round(selesaiTasks * 0.2)),
+    },
+    {
+      bulan: 'Juni',
+      target: Math.max(1, Math.round(totalTasks * 0.5)),
+      draft: Math.max(0, Math.round(totalDokumenCount * 0.45)),
+      selesai: Math.max(0, Math.round(selesaiTasks * 0.45)),
+    },
+    {
+      bulan: 'Juli',
+      target: Math.max(1, Math.round(totalTasks * 0.75)),
+      draft: Math.max(0, Math.round(totalDokumenCount * 0.7)),
+      selesai: Math.max(0, Math.round(selesaiTasks * 0.7)),
+    },
+    {
+      bulan: 'Agustus 2026',
+      target: totalTasks,
+      draft: totalDokumenCount,
+      selesai: selesaiTasks,
+    },
   ];
 
   // Data by Bidang for Bar Chart
@@ -124,10 +148,10 @@ export const RingkasanDashboard: React.FC<RingkasanDashboardProps> = ({
         Total: bidangMap[key].total,
       }))
     : [
-        { bidang: 'Legalisasi', Selesai: 1, Proses: 0, Total: 2 },
-        { bidang: 'Tata Kelola Rapat', Selesai: 0, Proses: 2, Total: 3 },
-        { bidang: 'Korespondensi', Selesai: 1, Proses: 2, Total: 5 },
-        { bidang: 'Logistik', Selesai: 0, Proses: 1, Total: 2 },
+        { bidang: 'Legalisasi', Selesai: 0, Proses: 0, Total: 0 },
+        { bidang: 'Tata Kelola Rapat', Selesai: 0, Proses: 0, Total: 0 },
+        { bidang: 'Korespondensi', Selesai: 0, Proses: 0, Total: 0 },
+        { bidang: 'Logistik', Selesai: 0, Proses: 0, Total: 0 },
       ];
 
   // Dynamic state for team members & accounts

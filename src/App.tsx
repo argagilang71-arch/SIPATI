@@ -69,23 +69,28 @@ export default function App() {
   const [proposals, setProposals] = useState<ProposalItem[]>(INITIAL_PROPOSALS);
   const [bannerConfig, setBannerConfig] = useState<BannerConfig>(DEFAULT_BANNER_CONFIG);
 
-  // Initial load from Cloud Firestore & real-time subscriptions across all connected devices
-  useEffect(() => {
+  // Helper to re-fetch all fresh data from Cloud Firestore across all devices
+  const refreshAllCloudData = () => {
     loadTasksFromCloud().then((cloudTasks) => {
-      if (cloudTasks) setTasks(cloudTasks);
+      if (cloudTasks && Array.isArray(cloudTasks)) setTasks(cloudTasks);
     });
     loadArchivesFromCloud().then((cloudArchives) => {
-      if (cloudArchives) setArchives(cloudArchives);
+      if (cloudArchives && Array.isArray(cloudArchives)) setArchives(cloudArchives);
     });
     loadTemplatesFromCloud().then((cloudTemplates) => {
-      if (cloudTemplates) setTemplates(cloudTemplates);
+      if (cloudTemplates && Array.isArray(cloudTemplates)) setTemplates(cloudTemplates);
     });
     loadProposalsFromCloud().then((cloudProposals) => {
-      if (cloudProposals) setProposals(cloudProposals);
+      if (cloudProposals && Array.isArray(cloudProposals)) setProposals(cloudProposals);
     });
     loadBannerConfigFromCloud().then((cloudBanner) => {
       if (cloudBanner) setBannerConfig(cloudBanner);
     });
+  };
+
+  // Initial load from Cloud Firestore & real-time subscriptions across all connected devices
+  useEffect(() => {
+    refreshAllCloudData();
 
     const unsubTasks = subscribeTasksCloud((nextTasks) => {
       setTasks(nextTasks);
@@ -111,13 +116,14 @@ export default function App() {
       } catch (e) {}
     });
 
-    // Also listen to local banner update events
+    // Also listen to local banner & data refresh update events
     const handleLocalBannerUpdate = () => {
       loadBannerConfigFromCloud().then((b) => {
         if (b) setBannerConfig(b);
       });
     };
     window.addEventListener('sipati_banner_updated', handleLocalBannerUpdate);
+    window.addEventListener('sipati_refresh_cloud', refreshAllCloudData);
 
     return () => {
       unsubTasks();
@@ -128,6 +134,7 @@ export default function App() {
       unsubNotifs();
       unsubLogs();
       window.removeEventListener('sipati_banner_updated', handleLocalBannerUpdate);
+      window.removeEventListener('sipati_refresh_cloud', refreshAllCloudData);
     };
   }, []);
 
@@ -543,6 +550,7 @@ export default function App() {
             onLoginSuccess={() => {
               setIsAuthenticated(true);
               setCurrentView('pekerjaan');
+              refreshAllCloudData();
               showBanner('Login Berhasil! Selamat datang di SIPATI.');
             }}
             onBackToLanding={() => setCurrentView('landing')}
